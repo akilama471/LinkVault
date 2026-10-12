@@ -7,13 +7,23 @@ import { DangerZoneSettings } from './DangerZoneSettings';
 interface SettingsViewProps {
   hasPassword: boolean;
   onSetPassword: (password: string) => Promise<boolean>;
+  onRemovePassword?: () => Promise<boolean>;
   onRefreshAll: () => void;
 }
 
-export const SettingsView: React.FC<SettingsViewProps> = ({ hasPassword, onSetPassword, onRefreshAll }) => {
+export const SettingsView: React.FC<SettingsViewProps> = ({ 
+  hasPassword, 
+  onSetPassword, 
+  onRemovePassword,
+  onRefreshAll 
+}) => {
   return (
     <div className="max-w-2xl space-y-6">
-      <SecuritySettings hasPassword={hasPassword} onSetPassword={onSetPassword} />
+      <SecuritySettings 
+        hasPassword={hasPassword} 
+        onSetPassword={onSetPassword} 
+        onRemovePassword={onRemovePassword}
+      />
       <BrowserImportSettings onRefreshAll={onRefreshAll} />
       <BackupSettings />
       <DangerZoneSettings onRefreshAll={onRefreshAll} />

@@ -52,6 +52,22 @@ export function useAuth() {
     }
   };
 
+  const removePassword = async () => {
+    try {
+      // @ts-ignore
+      const result = await window.electronAPI.auth.removePassword();
+      if (result.success) {
+        setHasPassword(false);
+        setIsAuthenticated(true);
+        return true;
+      }
+      return false;
+    } catch (err) {
+      console.error(err);
+      return false;
+    }
+  };
+
   const lock = async () => {
     try {
       // @ts-ignore
@@ -72,6 +88,7 @@ export function useAuth() {
     loading,
     verifyPassword,
     setPassword,
+    removePassword,
     lock,
     refresh: checkAuthStatus
   };

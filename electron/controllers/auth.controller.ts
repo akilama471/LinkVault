@@ -15,6 +15,15 @@ export function registerAuthController() {
     }
   });
 
+  ipcMain.handle('auth:removePassword', async () => {
+    try {
+      await passwordService.removePassword();
+      return { success: true };
+    } catch (error: any) {
+      return { success: false, error: error.message };
+    }
+  });
+
   ipcMain.handle('auth:verifyPassword', async (event, password: string) => {
     try {
       const success = await passwordService.verifyPassword(password);

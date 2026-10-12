@@ -34,6 +34,7 @@ export const electronAPI = {
   auth: {
     hasPassword: () => ipcRenderer.invoke('auth:hasPassword'),
     setPassword: (password: string) => ipcRenderer.invoke('auth:setPassword', password),
+    removePassword: () => ipcRenderer.invoke('auth:removePassword'),
     verifyPassword: (password: string) => ipcRenderer.invoke('auth:verifyPassword', password),
     lock: () => ipcRenderer.invoke('auth:lock')
   },

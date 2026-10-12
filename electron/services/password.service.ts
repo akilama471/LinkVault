@@ -43,6 +43,17 @@ export class PasswordService {
     return true;
   }
 
+  public async removePassword(): Promise<boolean> {
+    if (this.hasPasswordSet() && !this.isAuthenticated) {
+      throw new Error('Must be authenticated to remove password');
+    }
+
+    const db = dbManager.getDb();
+    db.prepare("DELETE FROM application_settings WHERE key = 'password_hash'").run();
+    this.isAuthenticated = true;
+    return true;
+  }
+
   public async verifyPassword(password: string): Promise<boolean> {
     const storedHash = this.getStoredHash();
     if (!storedHash) {

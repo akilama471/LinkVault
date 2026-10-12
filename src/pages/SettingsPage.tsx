@@ -4,12 +4,14 @@ import { SettingsView } from '../components/settings/SettingsView';
 interface SettingsPageProps {
   hasPassword: boolean;
   onSetPassword: (password: string) => Promise<boolean>;
+  onRemovePassword?: () => Promise<boolean>;
   onRefreshAll: () => void;
 }
 
 export const SettingsPage: React.FC<SettingsPageProps> = ({ 
   hasPassword, 
   onSetPassword, 
+  onRemovePassword,
   onRefreshAll 
 }) => {
   return (
@@ -21,6 +23,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
       <SettingsView 
         hasPassword={hasPassword} 
         onSetPassword={onSetPassword}
+        onRemovePassword={onRemovePassword}
         onRefreshAll={onRefreshAll}
       />
     </>

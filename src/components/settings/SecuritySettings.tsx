@@ -4,13 +4,18 @@ import { KeyRound, Check, AlertCircle } from 'lucide-react';
 interface SecuritySettingsProps {
   hasPassword: boolean;
   onSetPassword: (password: string) => Promise<boolean>;
+  onRemovePassword?: () => Promise<boolean>;
 }
 
-export const SecuritySettings: React.FC<SecuritySettingsProps> = ({ hasPassword, onSetPassword }) => {
+export const SecuritySettings: React.FC<SecuritySettingsProps> = ({ 
+  hasPassword, 
+  onSetPassword,
+  onRemovePassword 
+}) => {
   const [currentPassword, setCurrentPassword] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [status, setStatus] = useState<'idle' | 'success' | 'error' | 'invalid_current'>('idle');
+  const [status, setStatus] = useState<'idle' | 'success' | 'removed' | 'error' | 'invalid_current' | 'missing_current_for_remove'>('idle');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -39,6 +44,32 @@ export const SecuritySettings: React.FC<SecuritySettingsProps> = ({ hasPassword,
     }
   };
 
+  const handleRemove = async () => {
+    if (!currentPassword) {
+      setStatus('missing_current_for_remove');
+      return;
+    }
+
+    // @ts-ignore
+    const verifyRes = await window.electronAPI.auth.verifyPassword(currentPassword);
+    if (!verifyRes.success) {
+      setStatus('invalid_current');
+      return;
+    }
+
+    if (onRemovePassword) {
+      const success = await onRemovePassword();
+      if (success) {
+        setStatus('removed');
+        setCurrentPassword('');
+        setPassword('');
+        setConfirmPassword('');
+      } else {
+        setStatus('error');
+      }
+    }
+  };
+
   return (
     <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-200">
       <div className="flex items-center gap-3 mb-6">
@@ -52,9 +83,11 @@ export const SecuritySettings: React.FC<SecuritySettingsProps> = ({ hasPassword,
       </div>
 
       {hasPassword && (
-        <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg flex items-center gap-3 text-green-800">
-          <Check className="w-5 h-5 text-green-600" />
-          <p>Your application is currently protected with a password/PIN.</p>
+        <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg flex items-center justify-between text-green-800">
+          <div className="flex items-center gap-3">
+            <Check className="w-5 h-5 text-green-600 shrink-0" />
+            <p className="text-sm font-medium">Your application is currently protected with a password/PIN.</p>
+          </div>
         </div>
       )}
 
@@ -66,6 +99,7 @@ export const SecuritySettings: React.FC<SecuritySettingsProps> = ({ hasPassword,
               type="password"
               value={currentPassword}
               onChange={(e) => { setCurrentPassword(e.target.value); setStatus('idle'); }}
+              placeholder="Enter current password or PIN"
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
               required
             />
@@ -73,23 +107,28 @@ export const SecuritySettings: React.FC<SecuritySettingsProps> = ({ hasPassword,
         )}
         
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">New Password or PIN</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            {hasPassword ? 'New Password or PIN' : 'Password or PIN'}
+          </label>
           <input
             type="password"
             value={password}
             onChange={(e) => { setPassword(e.target.value); setStatus('idle'); }}
-            placeholder="Leave blank to remove (Not implemented yet)"
+            placeholder="Enter new password or PIN"
             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
             required
           />
         </div>
         
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Confirm Password or PIN</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            {hasPassword ? 'Confirm New Password or PIN' : 'Confirm Password or PIN'}
+          </label>
           <input
             type="password"
             value={confirmPassword}
             onChange={(e) => { setConfirmPassword(e.target.value); setStatus('idle'); }}
+            placeholder="Confirm password or PIN"
             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
             required
           />
@@ -109,6 +148,13 @@ export const SecuritySettings: React.FC<SecuritySettingsProps> = ({ hasPassword,
           </div>
         )}
 
+        {status === 'missing_current_for_remove' && (
+          <div className="flex items-center gap-2 text-amber-600 text-sm">
+            <AlertCircle className="w-4 h-4" />
+            <span>Please enter your current password or PIN above to remove protection.</span>
+          </div>
+        )}
+
         {status === 'success' && (
           <div className="flex items-center gap-2 text-green-600 text-sm">
             <Check className="w-4 h-4" />
@@ -116,7 +162,14 @@ export const SecuritySettings: React.FC<SecuritySettingsProps> = ({ hasPassword,
           </div>
         )}
 
-        <div className="pt-2">
+        {status === 'removed' && (
+          <div className="flex items-center gap-2 text-green-600 text-sm">
+            <Check className="w-4 h-4" />
+            <span>Password protection has been removed.</span>
+          </div>
+        )}
+
+        <div className="pt-2 flex flex-wrap items-center gap-3">
           <button
             type="submit"
             disabled={!password || !confirmPassword}
@@ -124,6 +177,16 @@ export const SecuritySettings: React.FC<SecuritySettingsProps> = ({ hasPassword,
           >
             {hasPassword ? 'Change Password' : 'Set Password'}
           </button>
+
+          {hasPassword && onRemovePassword && (
+            <button
+              type="button"
+              onClick={handleRemove}
+              className="bg-red-50 text-red-700 border border-red-200 font-medium px-5 py-2 rounded-lg hover:bg-red-100 transition-colors"
+            >
+              Remove Protection
+            </button>
+          )}
         </div>
       </form>
     </div>

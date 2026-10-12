@@ -16,8 +16,8 @@ const App: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [newUrl, setNewUrl] = useState('');
   const [isAdding, setIsAdding] = useState(false);
-  const { bookmarks, loading, addBookmark, deleteBookmark, toggleFavorite, toggleImportant, updateBookmark, refresh: refreshBookmarks } = useBookmarks();
-  const { hasPassword, isAuthenticated, loading: authLoading, verifyPassword, setPassword } = useAuth();
+  const { hasPassword, isAuthenticated, loading: authLoading, verifyPassword, setPassword, removePassword, lock } = useAuth();
+  const { bookmarks, loading, addBookmark, deleteBookmark, toggleFavorite, toggleImportant, updateBookmark, refresh: refreshBookmarks } = useBookmarks(isAuthenticated);
 
   const refreshAllData = () => {
     refreshBookmarks();
@@ -26,11 +26,12 @@ const App: React.FC = () => {
   };
 
   React.useEffect(() => {
+    if (!isAuthenticated) return;
     const timer = setTimeout(() => {
       refreshBookmarks(searchQuery);
     }, 500);
     return () => clearTimeout(timer);
-  }, [searchQuery, refreshBookmarks]);
+  }, [searchQuery, refreshBookmarks, isAuthenticated]);
 
   const handleTabChange = (tab: string) => {
     setCurrentTab(tab);
@@ -69,6 +70,8 @@ const App: React.FC = () => {
       onUrlChange={setNewUrl}
       onAddSubmit={handleAddSubmit}
       isAdding={isAdding}
+      hasPassword={hasPassword}
+      onLock={lock}
     >
       {(currentTab === 'all' || currentTab === 'favorites' || currentTab === 'important') && (
             <BookmarksPage 
@@ -116,6 +119,7 @@ const App: React.FC = () => {
             <SettingsPage 
               hasPassword={hasPassword}
               onSetPassword={setPassword}
+              onRemovePassword={removePassword}
               onRefreshAll={refreshAllData}
             />
           )}

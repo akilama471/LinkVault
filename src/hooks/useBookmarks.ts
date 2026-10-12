@@ -1,12 +1,18 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Bookmark } from '../types/models';
 
-export function useBookmarks() {
+export function useBookmarks(isAuthenticated = true) {
   const [bookmarks, setBookmarks] = useState<Bookmark[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const fetchBookmarks = useCallback(async (query?: string, silent = false) => {
+    if (!isAuthenticated) {
+      setBookmarks([]);
+      setLoading(false);
+      return;
+    }
+
     try {
       if (!silent) setLoading(true);
       setError(null);
@@ -30,7 +36,7 @@ export function useBookmarks() {
     } finally {
       if (!silent) setLoading(false);
     }
-  }, []);
+  }, [isAuthenticated]);
 
   const addBookmark = async (url: string) => {
     try {
@@ -79,6 +85,12 @@ export function useBookmarks() {
   const toggleImportant = (id: number, currentStatus: boolean) => updateBookmark(id, { is_important: !currentStatus });
 
   useEffect(() => {
+    if (!isAuthenticated) {
+      setBookmarks([]);
+      setLoading(false);
+      return;
+    }
+
     fetchBookmarks();
     
     // @ts-ignore
@@ -89,7 +101,7 @@ export function useBookmarks() {
     return () => {
       if (unsubscribe) unsubscribe();
     };
-  }, [fetchBookmarks]);
+  }, [fetchBookmarks, isAuthenticated]);
 
   return {
     bookmarks,

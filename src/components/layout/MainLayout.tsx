@@ -11,6 +11,8 @@ interface MainLayoutProps {
   onUrlChange: (value: string) => void;
   onAddSubmit: (e: React.FormEvent) => void;
   isAdding: boolean;
+  hasPassword?: boolean;
+  onLock?: () => void;
   children: React.ReactNode;
 }
 
@@ -23,11 +25,18 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
   onUrlChange,
   onAddSubmit,
   isAdding,
+  hasPassword,
+  onLock,
   children
 }) => {
   return (
     <div className="flex h-screen bg-gray-50 overflow-hidden font-sans">
-      <Sidebar currentTab={currentTab} onTabChange={onTabChange} />
+      <Sidebar 
+        currentTab={currentTab} 
+        onTabChange={onTabChange} 
+        hasPassword={hasPassword}
+        onLock={onLock}
+      />
       
       <main className="flex-1 flex flex-col h-full overflow-hidden">
         <TopHeader 
