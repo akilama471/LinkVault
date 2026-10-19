@@ -148,6 +148,12 @@ export class DbManager {
           INSERT INTO bookmarks_fts(rowid, title, url, description, notes)
           SELECT id, title, url, description, notes FROM bookmarks;
         `,
+      },
+      {
+        version: 3,
+        up: `
+          ALTER TABLE domains ADD COLUMN display_name TEXT;
+        `,
       }
     ];
 

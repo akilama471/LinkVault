@@ -21,7 +21,7 @@ export const DomainsPage: React.FC<DomainsPageProps> = ({
   onToggleImportant, 
   onUpdateBookmark 
 }) => {
-  const { domains, loading } = useDomains();
+  const { domains, loading, refetchDomain, renameDomain, deleteDomain } = useDomains();
   const [selectedDomain, setSelectedDomain] = useState<Domain | null>(null);
   const [sortOrder, setSortOrder] = useState<'newest' | 'oldest' | 'title-asc' | 'title-desc'>('newest');
   const [editingBookmark, setEditingBookmark] = useState<Bookmark | null>(null);
@@ -37,8 +37,12 @@ export const DomainsPage: React.FC<DomainsPageProps> = ({
         </div>
         <DomainsView 
           domains={domains} 
+          bookmarks={bookmarks}
           loading={loading} 
-          onSelectDomain={setSelectedDomain} 
+          onSelectDomain={setSelectedDomain}
+          onRefetchDomain={refetchDomain}
+          onRenameDomain={renameDomain}
+          onDeleteDomain={deleteDomain}
         />
       </>
     );
@@ -53,18 +57,25 @@ export const DomainsPage: React.FC<DomainsPageProps> = ({
     return 0;
   });
 
+  const selectedDisplayName = selectedDomain.display_name || selectedDomain.domain;
+
   return (
     <>
       <div className="mb-6 flex items-center justify-between">
         <div className="flex items-center gap-4">
           <button 
             onClick={() => setSelectedDomain(null)}
-            className="flex items-center gap-2 text-blue-600 hover:text-blue-800 font-medium bg-blue-50 px-3 py-1.5 rounded-lg transition-colors"
+            className="flex items-center gap-2 text-blue-600 hover:text-blue-800 font-medium bg-blue-50 px-3 py-1.5 rounded-lg transition-colors cursor-pointer"
           >
             ← Back to Domains
           </button>
           <div>
-            <h2 className="text-2xl font-bold text-gray-900">{selectedDomain.domain}</h2>
+            <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+              <span>{selectedDisplayName}</span>
+              {selectedDomain.display_name && selectedDomain.display_name !== selectedDomain.domain && (
+                <span className="text-sm font-normal text-gray-500">({selectedDomain.domain})</span>
+              )}
+            </h2>
             <p className="text-gray-500">
               {sortedBookmarks.length} {sortedBookmarks.length === 1 ? 'bookmark' : 'bookmarks'} found
             </p>

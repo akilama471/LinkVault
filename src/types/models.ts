@@ -16,6 +16,7 @@ export interface Bookmark {
 export interface Domain {
   id: number;
   domain: string;
+  display_name?: string | null;
   favicon_path: string | null;
   created_at: string;
   updated_at: string;

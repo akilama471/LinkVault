@@ -24,14 +24,68 @@ export function useDomains() {
     }
   }, []);
 
+  const refetchDomain = async (id: number) => {
+    try {
+      // @ts-ignore
+      const result = await window.electronAPI.domains.refetch(id);
+      if (result.success) {
+        await fetchDomains();
+        return { success: true, data: result.data };
+      }
+      return { success: false, error: result.error };
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  };
+
+  const renameDomain = async (id: number, newName: string) => {
+    try {
+      // @ts-ignore
+      const result = await window.electronAPI.domains.rename(id, newName);
+      if (result.success) {
+        await fetchDomains();
+        return { success: true, data: result.data };
+      }
+      return { success: false, error: result.error };
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  };
+
+  const deleteDomain = async (id: number, deleteBookmarks: boolean) => {
+    try {
+      // @ts-ignore
+      const result = await window.electronAPI.domains.delete(id, deleteBookmarks);
+      if (result.success) {
+        await fetchDomains();
+        return { success: true };
+      }
+      return { success: false, error: result.error };
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  };
+
   useEffect(() => {
     fetchDomains();
+
+    // @ts-ignore
+    const unsubscribe = window.electronAPI.events?.onDomainsUpdated?.(() => {
+      fetchDomains();
+    });
+
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
   }, [fetchDomains]);
 
   return {
     domains,
     loading,
     error,
-    refresh: fetchDomains
+    refresh: fetchDomains,
+    refetchDomain,
+    renameDomain,
+    deleteDomain
   };
 }

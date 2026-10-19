@@ -9,6 +9,9 @@ export declare const electronAPI: {
     };
     domains: {
         getAll: () => Promise<any>;
+        refetch: (id: number) => Promise<any>;
+        rename: (id: number, newName: string) => Promise<any>;
+        delete: (id: number, deleteBookmarks: boolean) => Promise<any>;
     };
     tags: {
         getAll: () => Promise<any>;
@@ -59,6 +62,7 @@ export declare const electronAPI: {
     };
     events: {
         onBookmarksUpdated: (callback: () => void) => () => Electron.IpcRenderer;
+        onDomainsUpdated: (callback: () => void) => () => Electron.IpcRenderer;
         onJobsUpdated: (callback: () => void) => () => Electron.IpcRenderer;
     };
     jobs: {

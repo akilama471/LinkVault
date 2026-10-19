@@ -1,14 +1,94 @@
-import React from 'react';
-import { Domain } from '../../types/models';
+import React, { useState } from 'react';
+import { Domain, Bookmark } from '../../types/models';
+import { DomainCard } from './DomainCard';
+import { DomainContextMenu } from './DomainContextMenu';
+import { DeleteDomainModal } from './DeleteDomainModal';
 import { Globe, Loader2 } from 'lucide-react';
+import { useToast } from '../../context/ToastContext';
 
 interface DomainsViewProps {
   domains: Domain[];
+  bookmarks: Bookmark[];
   loading: boolean;
   onSelectDomain: (domain: Domain) => void;
+  onRefetchDomain: (id: number) => Promise<{ success: boolean; data?: Domain; error?: string }>;
+  onRenameDomain: (id: number, newName: string) => Promise<{ success: boolean; data?: Domain; error?: string }>;
+  onDeleteDomain: (id: number, deleteBookmarks: boolean) => Promise<{ success: boolean; error?: string }>;
 }
 
-export const DomainsView: React.FC<DomainsViewProps> = ({ domains, loading, onSelectDomain }) => {
+export const DomainsView: React.FC<DomainsViewProps> = ({
+  domains,
+  bookmarks,
+  loading,
+  onSelectDomain,
+  onRefetchDomain,
+  onRenameDomain,
+  onDeleteDomain
+}) => {
+  const { success, error } = useToast();
+  const [refetchingIds, setRefetchingIds] = useState<Set<number>>(new Set());
+  const [renamingId, setRenamingId] = useState<number | null>(null);
+  const [contextMenu, setContextMenu] = useState<{
+    domain: Domain;
+    x: number;
+    y: number;
+  } | null>(null);
+  const [deleteModal, setDeleteModal] = useState<{
+    domain: Domain;
+    bookmarkCount: number;
+    initialDeleteBookmarks?: boolean;
+  } | null>(null);
+
+  // Helper to count bookmarks for a given domain
+  const getBookmarkCount = (domainId: number) => {
+    return bookmarks.filter(b => b.domain_id === domainId).length;
+  };
+
+  const handleRefetch = async (domain: Domain) => {
+    setRefetchingIds(prev => new Set(prev).add(domain.id));
+    const result = await onRefetchDomain(domain.id);
+    setRefetchingIds(prev => {
+      const next = new Set(prev);
+      next.delete(domain.id);
+      return next;
+    });
+
+    const displayName = domain.display_name || domain.domain;
+    if (result.success) {
+      success('Website Updated', `Successfully updated details for ${displayName}`);
+    } else {
+      error('Refetch Failed', result.error || `Could not fetch updated details for ${displayName}`);
+    }
+  };
+
+  const handleFinishRename = async (domain: Domain, newName: string) => {
+    const result = await onRenameDomain(domain.id, newName);
+    if (result.success) {
+      success('Website Renamed', `Display name updated to "${newName}"`);
+      setRenamingId(null);
+    } else {
+      error('Rename Failed', result.error || 'Failed to update website name.');
+    }
+  };
+
+  const handleConfirmDelete = async (deleteBookmarks: boolean) => {
+    if (!deleteModal) return;
+    const { domain } = deleteModal;
+    const displayName = domain.display_name || domain.domain;
+    const result = await onDeleteDomain(domain.id, deleteBookmarks);
+
+    if (result.success) {
+      success(
+        'Website Deleted',
+        deleteBookmarks
+          ? `Removed ${displayName} and its associated bookmarks.`
+          : `Removed ${displayName}. Bookmarks were preserved.`
+      );
+    } else {
+      error('Delete Failed', result.error || `Failed to delete ${displayName}`);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center h-64 text-gray-400">
@@ -31,28 +111,82 @@ export const DomainsView: React.FC<DomainsViewProps> = ({ domains, loading, onSe
   }
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
-      {domains.map((domain) => {
-        const iconUrl = domain.favicon_path ? `asset://${domain.favicon_path}` : null;
-        return (
-          <button
-            key={domain.id}
-            onClick={() => onSelectDomain(domain)}
-            className="flex flex-col items-center justify-center p-6 bg-white rounded-xl shadow-sm border border-gray-200 hover:shadow-md hover:border-blue-300 transition-all group"
-          >
-            <div className="w-16 h-16 rounded-full bg-gray-50 flex items-center justify-center mb-4 overflow-hidden border border-gray-100 group-hover:scale-110 transition-transform">
-              {iconUrl ? (
-                <img src={iconUrl} alt={domain.domain} className="w-8 h-8 object-contain" />
-              ) : (
-                <Globe className="w-8 h-8 text-gray-400" />
-              )}
-            </div>
-            <span className="font-medium text-gray-800 text-sm truncate w-full text-center" title={domain.domain}>
-              {domain.domain}
-            </span>
-          </button>
-        );
-      })}
-    </div>
+    <>
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-5">
+        {domains.map((domain) => {
+          const count = getBookmarkCount(domain.id);
+          const isRefetching = refetchingIds.has(domain.id);
+          const isRenaming = renamingId === domain.id;
+
+          return (
+            <DomainCard
+              key={domain.id}
+              domain={domain}
+              bookmarkCount={count}
+              isRefetching={isRefetching}
+              isRenaming={isRenaming}
+              onSelect={() => onSelectDomain(domain)}
+              onStartRename={() => setRenamingId(domain.id)}
+              onFinishRename={(newName) => handleFinishRename(domain, newName)}
+              onCancelRename={() => setRenamingId(null)}
+              onContextMenu={(e) => {
+                e.preventDefault();
+                setContextMenu({
+                  domain,
+                  x: e.clientX,
+                  y: e.clientY
+                });
+              }}
+              onOpenMenu={(e) => {
+                const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                setContextMenu({
+                  domain,
+                  x: rect.left,
+                  y: rect.bottom + 4
+                });
+              }}
+            />
+          );
+        })}
+      </div>
+
+      {/* Right-click / Action Context Menu */}
+      {contextMenu && (
+        <DomainContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          domain={contextMenu.domain}
+          bookmarkCount={getBookmarkCount(contextMenu.domain.id)}
+          isRefetching={refetchingIds.has(contextMenu.domain.id)}
+          onClose={() => setContextMenu(null)}
+          onRefetch={() => handleRefetch(contextMenu.domain)}
+          onRename={() => setRenamingId(contextMenu.domain.id)}
+          onOpenDeleteModal={() => {
+            setDeleteModal({
+              domain: contextMenu.domain,
+              bookmarkCount: getBookmarkCount(contextMenu.domain.id)
+            });
+          }}
+          onQuickDelete={(deleteBookmarks) => {
+            setDeleteModal({
+              domain: contextMenu.domain,
+              bookmarkCount: getBookmarkCount(contextMenu.domain.id),
+              initialDeleteBookmarks: deleteBookmarks
+            });
+          }}
+        />
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deleteModal && (
+        <DeleteDomainModal
+          domain={deleteModal.domain}
+          bookmarkCount={deleteModal.bookmarkCount}
+          initialDeleteBookmarks={deleteModal.initialDeleteBookmarks}
+          onClose={() => setDeleteModal(null)}
+          onConfirm={handleConfirmDelete}
+        />
+      )}
+    </>
   );
 };

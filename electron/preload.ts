@@ -11,7 +11,10 @@ export const electronAPI = {
     delete: (id: number) => ipcRenderer.invoke('bookmarks:delete', id)
   },
   domains: {
-    getAll: () => ipcRenderer.invoke('domains:getAll')
+    getAll: () => ipcRenderer.invoke('domains:getAll'),
+    refetch: (id: number) => ipcRenderer.invoke('domains:refetch', id),
+    rename: (id: number, newName: string) => ipcRenderer.invoke('domains:rename', id, newName),
+    delete: (id: number, deleteBookmarks: boolean) => ipcRenderer.invoke('domains:delete', id, deleteBookmarks)
   },
   tags: {
     getAll: () => ipcRenderer.invoke('tags:getAll'),
@@ -62,6 +65,11 @@ export const electronAPI = {
       const listener = () => callback();
       ipcRenderer.on('bookmarks:updated', listener);
       return () => ipcRenderer.removeListener('bookmarks:updated', listener);
+    },
+    onDomainsUpdated: (callback: () => void) => {
+      const listener = () => callback();
+      ipcRenderer.on('domains:updated', listener);
+      return () => ipcRenderer.removeListener('domains:updated', listener);
     },
     onJobsUpdated: (callback: () => void) => {
       const listener = () => callback();

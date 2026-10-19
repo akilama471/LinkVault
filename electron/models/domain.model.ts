@@ -27,9 +27,21 @@ export class DomainModel {
     return stmt.get(id) as Domain | null;
   }
 
+  public updateDisplayName(id: number, displayName: string | null): Domain {
+    const db = dbManager.getDb();
+    const stmt = db.prepare('UPDATE domains SET display_name = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?');
+    stmt.run(displayName, id);
+    return this.findById(id)!;
+  }
+
+  public delete(id: number): void {
+    const db = dbManager.getDb();
+    db.prepare('DELETE FROM domains WHERE id = ?').run(id);
+  }
+
   public getAll(): Domain[] {
     const db = dbManager.getDb();
-    const stmt = db.prepare('SELECT * FROM domains ORDER BY domain ASC');
+    const stmt = db.prepare('SELECT * FROM domains ORDER BY COALESCE(display_name, domain) COLLATE NOCASE ASC');
     return stmt.all() as Domain[];
   }
 }
