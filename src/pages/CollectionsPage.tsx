@@ -4,7 +4,7 @@ import { CollectionsView } from '../components/collections/CollectionsView';
 import { BookmarkCard } from '../components/bookmarks/BookmarkCard';
 import { BookmarkDetailsModal } from '../components/bookmarks/BookmarkDetailsModal';
 import { Bookmark, Collection } from '../types/models';
-import { Search } from 'lucide-react';
+import { Search, Plus } from 'lucide-react';
 
 interface CollectionsPageProps {
   bookmarks: Bookmark[];
@@ -15,19 +15,27 @@ interface CollectionsPageProps {
   onRefetchBookmark?: (id: number) => Promise<{ success: boolean; data?: Bookmark; error?: string }>;
 }
 
-export const CollectionsPage: React.FC<CollectionsPageProps> = ({ 
-  bookmarks, 
-  onDeleteBookmark, 
-  onToggleFavorite, 
-  onToggleImportant, 
+export const CollectionsPage: React.FC<CollectionsPageProps> = ({
+  bookmarks,
+  onDeleteBookmark,
+  onToggleFavorite,
+  onToggleImportant,
   onUpdateBookmark,
-  onRefetchBookmark
+  onRefetchBookmark,
 }) => {
-  const { collections, loading, createCollection, renameCollection, deleteCollection, getBookmarkIds } = useCollections();
+  const {
+    collections,
+    loading,
+    createCollection,
+    renameCollection,
+    deleteCollection,
+    getBookmarkIds,
+  } = useCollections();
   const [selectedCollection, setSelectedCollection] = useState<Collection | null>(null);
   const [filteredColBookmarkIds, setFilteredColBookmarkIds] = useState<number[]>([]);
   const [sortOrder, setSortOrder] = useState<'newest' | 'oldest' | 'title-asc' | 'title-desc'>('newest');
   const [editingBookmark, setEditingBookmark] = useState<Bookmark | null>(null);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
   const handleSelectCollection = async (col: Collection) => {
     const ids = await getBookmarkIds(col.id);
@@ -38,15 +46,28 @@ export const CollectionsPage: React.FC<CollectionsPageProps> = ({
   if (!selectedCollection) {
     return (
       <>
-        <div className="mb-6">
-          <h2 className="text-2xl font-bold text-gray-900">Collections</h2>
-          <p className="text-gray-500">
-            {collections.length} {collections.length === 1 ? 'collection' : 'collections'} found
-          </p>
+        <div className="mb-6 flex items-center justify-between">
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900">Collections</h2>
+            <p className="text-gray-500">
+              {collections.length} {collections.length === 1 ? 'collection' : 'collections'} found
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setIsCreateModalOpen(true)}
+            className="bg-blue-600 text-white px-4 py-2 rounded-xl hover:bg-blue-700 transition-colors flex items-center gap-2 text-sm font-medium shadow-xs cursor-pointer"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Create Collection</span>
+          </button>
         </div>
-        <CollectionsView 
-          collections={collections} 
-          loading={loading} 
+        <CollectionsView
+          collections={collections}
+          loading={loading}
+          isCreateModalOpen={isCreateModalOpen}
+          onOpenCreateModal={() => setIsCreateModalOpen(true)}
+          onCloseCreateModal={() => setIsCreateModalOpen(false)}
           onSelectCollection={handleSelectCollection}
           onCreateCollection={createCollection}
           onRenameCollection={renameCollection}
@@ -56,7 +77,7 @@ export const CollectionsPage: React.FC<CollectionsPageProps> = ({
     );
   }
 
-  const colBookmarks = bookmarks.filter(b => filteredColBookmarkIds.includes(b.id));
+  const colBookmarks = bookmarks.filter((b) => filteredColBookmarkIds.includes(b.id));
   const sortedBookmarks = [...colBookmarks].sort((a, b) => {
     if (sortOrder === 'newest') return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
     if (sortOrder === 'oldest') return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
@@ -65,26 +86,29 @@ export const CollectionsPage: React.FC<CollectionsPageProps> = ({
     return 0;
   });
 
+  const activeCollection =
+    collections.find((c) => c.id === selectedCollection.id) || selectedCollection;
+
   return (
     <>
       <div className="mb-6 flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <button 
+          <button
             onClick={() => setSelectedCollection(null)}
-            className="flex items-center gap-2 text-blue-600 hover:text-blue-800 font-medium bg-blue-50 px-3 py-1.5 rounded-lg transition-colors"
+            className="flex items-center gap-2 text-blue-600 hover:text-blue-800 font-medium bg-blue-50 px-3 py-1.5 rounded-lg transition-colors cursor-pointer"
           >
             ← Back to Collections
           </button>
           <div>
-            <h2 className="text-2xl font-bold text-gray-900">{selectedCollection.name}</h2>
+            <h2 className="text-2xl font-bold text-gray-900">{activeCollection.name}</h2>
             <p className="text-gray-500">
               {sortedBookmarks.length} {sortedBookmarks.length === 1 ? 'bookmark' : 'bookmarks'} found
             </p>
           </div>
         </div>
         <div>
-          <select 
-            value={sortOrder} 
+          <select
+            value={sortOrder}
             onChange={(e) => setSortOrder(e.target.value as any)}
             className="px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm text-gray-700 outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
           >
@@ -105,10 +129,10 @@ export const CollectionsPage: React.FC<CollectionsPageProps> = ({
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {sortedBookmarks.map(bookmark => (
-            <BookmarkCard 
-              key={bookmark.id} 
-              bookmark={bookmark} 
+          {sortedBookmarks.map((bookmark) => (
+            <BookmarkCard
+              key={bookmark.id}
+              bookmark={bookmark}
               onDelete={onDeleteBookmark}
               onToggleFavorite={onToggleFavorite}
               onToggleImportant={onToggleImportant}

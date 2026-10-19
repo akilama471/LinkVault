@@ -13,6 +13,16 @@ export function registerCollectionController() {
     }
   });
 
+  ipcMain.handle('collections:getDeleted', async () => {
+    try {
+      passwordService.checkAuth();
+      const cols = collectionService.getDeletedCollections();
+      return { success: true, data: cols };
+    } catch (error: any) {
+      return { success: false, error: error.message };
+    }
+  });
+
   ipcMain.handle('collections:create', async (event, name: string, description: string | null) => {
     try {
       passwordService.checkAuth();
@@ -33,11 +43,51 @@ export function registerCollectionController() {
     }
   });
 
-  ipcMain.handle('collections:delete', async (event, id: number) => {
+  ipcMain.handle('collections:refetch', async (event, id: number) => {
     try {
       passwordService.checkAuth();
-      collectionService.deleteCollection(id);
+      const col = await collectionService.refetchCollection(id);
+      return { success: true, data: col };
+    } catch (error: any) {
+      return { success: false, error: error.message };
+    }
+  });
+
+  ipcMain.handle('collections:delete', async (event, id: number, deleteBookmarks = false) => {
+    try {
+      passwordService.checkAuth();
+      collectionService.deleteCollection(id, Boolean(deleteBookmarks));
       return { success: true };
+    } catch (error: any) {
+      return { success: false, error: error.message };
+    }
+  });
+
+  ipcMain.handle('collections:restore', async (event, id: number) => {
+    try {
+      passwordService.checkAuth();
+      const col = collectionService.restoreCollection(id);
+      return { success: true, data: col };
+    } catch (error: any) {
+      return { success: false, error: error.message };
+    }
+  });
+
+  ipcMain.handle('collections:permanentDelete', async (event, id: number) => {
+    try {
+      passwordService.checkAuth();
+      collectionService.permanentDeleteCollection(id);
+      return { success: true };
+    } catch (error: any) {
+      return { success: false, error: error.message };
+    }
+  });
+
+  ipcMain.handle('collections:emptyTrash', async () => {
+    try {
+      passwordService.checkAuth();
+      const count = collectionService.emptyRecycleBin();
+      return { success: true, count };
     } catch (error: any) {
       return { success: false, error: error.message };
     }

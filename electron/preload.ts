@@ -32,9 +32,14 @@ export const electronAPI = {
   },
   collections: {
     getAll: () => ipcRenderer.invoke('collections:getAll'),
+    getDeleted: () => ipcRenderer.invoke('collections:getDeleted'),
     create: (name: string, description?: string) => ipcRenderer.invoke('collections:create', name, description),
     rename: (id: number, newName: string, description?: string) => ipcRenderer.invoke('collections:rename', id, newName, description),
-    delete: (id: number) => ipcRenderer.invoke('collections:delete', id),
+    refetch: (id: number) => ipcRenderer.invoke('collections:refetch', id),
+    delete: (id: number, deleteBookmarks = false) => ipcRenderer.invoke('collections:delete', id, deleteBookmarks),
+    restore: (id: number) => ipcRenderer.invoke('collections:restore', id),
+    permanentDelete: (id: number) => ipcRenderer.invoke('collections:permanentDelete', id),
+    emptyTrash: () => ipcRenderer.invoke('collections:emptyTrash'),
     getForBookmark: (bookmarkId: number) => ipcRenderer.invoke('collections:getForBookmark', bookmarkId),
     setForBookmark: (bookmarkId: number, colNames: string[]) => ipcRenderer.invoke('collections:setForBookmark', bookmarkId, colNames),
     getBookmarkIds: (collectionId: number) => ipcRenderer.invoke('collections:getBookmarkIds', collectionId)
@@ -75,6 +80,11 @@ export const electronAPI = {
       const listener = () => callback();
       ipcRenderer.on('domains:updated', listener);
       return () => ipcRenderer.removeListener('domains:updated', listener);
+    },
+    onCollectionsUpdated: (callback: () => void) => {
+      const listener = () => callback();
+      ipcRenderer.on('collections:updated', listener);
+      return () => ipcRenderer.removeListener('collections:updated', listener);
     },
     onJobsUpdated: (callback: () => void) => {
       const listener = () => callback();

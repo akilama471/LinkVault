@@ -34,6 +34,8 @@ export interface Collection {
   id: number;
   name: string;
   description: string | null;
+  bookmark_count?: number;
+  deleted_at?: string | null;
   created_at: string;
   updated_at: string;
 }

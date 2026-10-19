@@ -14,6 +14,7 @@ import { registerBackupController } from './controllers/backup.controller';
 import { registerBrowserLauncherController } from './controllers/browser-launcher.controller';
 import { browserLauncherService } from './services/browser-launcher.service';
 import { bookmarkService } from './services/bookmark.service';
+import { collectionService } from './services/collection.service';
 import { dbManager } from './database/db';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -131,11 +132,13 @@ app.whenReady().then(() => {
   
   // Start background jobs
   bookmarkService.purgeExpiredBookmarks();
+  collectionService.purgeExpiredCollections();
   setInterval(() => {
     try {
       bookmarkService.purgeExpiredBookmarks();
+      collectionService.purgeExpiredCollections();
     } catch (e) {
-      console.error('Failed to purge expired Recycle Bin bookmarks:', e);
+      console.error('Failed to purge expired Recycle Bin items:', e);
     }
   }, 60 * 60 * 1000);
   enrichmentService.startEnrichmentJob();

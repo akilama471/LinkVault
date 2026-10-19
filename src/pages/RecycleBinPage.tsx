@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Bookmark } from '../types/models';
+import { Bookmark, Collection } from '../types/models';
 import {
   Trash2,
   RotateCcw,
@@ -9,6 +9,7 @@ import {
   AlertTriangle,
   X,
   Loader2,
+  Folder,
 } from 'lucide-react';
 import clsx from 'clsx';
 import { useBookmarkOpener } from '../context/BookmarkOpenerContext';
@@ -17,11 +18,14 @@ import { DeleteBookmarkModal } from '../components/bookmarks/DeleteBookmarkModal
 
 interface RecycleBinPageProps {
   deletedBookmarks: Bookmark[];
+  deletedCollections?: Collection[];
   loading: boolean;
   searchQuery?: string;
   onRestoreBookmark: (id: number) => Promise<{ success: boolean; error?: string }>;
   onPermanentDeleteBookmark: (id: number) => Promise<{ success: boolean; error?: string }>;
   onEmptyRecycleBin: () => Promise<{ success: boolean; count?: number; error?: string }>;
+  onRestoreCollection?: (id: number) => Promise<{ success: boolean; error?: string }>;
+  onPermanentDeleteCollection?: (id: number) => Promise<{ success: boolean; error?: string }>;
 }
 
 function getDaysRemaining(deletedAt?: string | null): number {
@@ -37,22 +41,28 @@ function getDaysRemaining(deletedAt?: string | null): number {
 
 export const RecycleBinPage: React.FC<RecycleBinPageProps> = ({
   deletedBookmarks,
+  deletedCollections = [],
   loading,
   searchQuery = '',
   onRestoreBookmark,
   onPermanentDeleteBookmark,
   onEmptyRecycleBin,
+  onRestoreCollection,
+  onPermanentDeleteCollection,
 }) => {
   const { openBookmark } = useBookmarkOpener();
   const { success, error } = useToast();
 
+  const [filterType, setFilterType] = useState<'all' | 'bookmarks' | 'collections'>('all');
   const [bookmarkToDelete, setBookmarkToDelete] = useState<Bookmark | null>(null);
+  const [collectionToDelete, setCollectionToDelete] = useState<Collection | null>(null);
   const [showEmptyConfirm, setShowEmptyConfirm] = useState(false);
   const [isEmptying, setIsEmptying] = useState(false);
   const [restoringIds, setRestoringIds] = useState<Set<number>>(new Set());
+  const [restoringColIds, setRestoringColIds] = useState<Set<number>>(new Set());
   const [imgErrors, setImgErrors] = useState<Set<number>>(new Set());
   const [contextMenu, setContextMenu] = useState<{
-    bookmark: Bookmark;
+    item: { type: 'bookmark'; data: Bookmark } | { type: 'collection'; data: Collection };
     x: number;
     y: number;
   } | null>(null);
@@ -88,7 +98,17 @@ export const RecycleBinPage: React.FC<RecycleBinPageProps> = ({
       )
     : deletedBookmarks;
 
-  const handleRestore = async (bookmark: Bookmark) => {
+  const filteredCollections = query
+    ? deletedCollections.filter(
+        (c) =>
+          c.name.toLowerCase().includes(query) ||
+          (c.description && c.description.toLowerCase().includes(query))
+      )
+    : deletedCollections;
+
+  const totalCount = filteredBookmarks.length + filteredCollections.length;
+
+  const handleRestoreBookmark = async (bookmark: Bookmark) => {
     setRestoringIds((prev) => new Set(prev).add(bookmark.id));
     try {
       const result = await onRestoreBookmark(bookmark.id);
@@ -107,7 +127,26 @@ export const RecycleBinPage: React.FC<RecycleBinPageProps> = ({
     }
   };
 
-  const handleConfirmPermanentDelete = async () => {
+  const handleRestoreCollection = async (collection: Collection) => {
+    if (!onRestoreCollection) return;
+    setRestoringColIds((prev) => new Set(prev).add(collection.id));
+    try {
+      const result = await onRestoreCollection(collection.id);
+      if (result.success) {
+        success('Collection Restored', `"${collection.name}" has been restored.`);
+      } else {
+        error('Restore Failed', result.error || 'Could not restore collection.');
+      }
+    } finally {
+      setRestoringColIds((prev) => {
+        const next = new Set(prev);
+        next.delete(collection.id);
+        return next;
+      });
+    }
+  };
+
+  const handleConfirmPermanentDeleteBookmark = async () => {
     if (!bookmarkToDelete) return;
     const displayName = bookmarkToDelete.title || 'Untitled';
     const result = await onPermanentDeleteBookmark(bookmarkToDelete.id);
@@ -118,12 +157,23 @@ export const RecycleBinPage: React.FC<RecycleBinPageProps> = ({
     }
   };
 
+  const handleConfirmPermanentDeleteCollection = async () => {
+    if (!collectionToDelete || !onPermanentDeleteCollection) return;
+    const result = await onPermanentDeleteCollection(collectionToDelete.id);
+    if (result.success) {
+      success('Collection Deleted', `"${collectionToDelete.name}" was permanently deleted.`);
+      setCollectionToDelete(null);
+    } else {
+      error('Delete Failed', result.error || 'Could not permanently delete collection.');
+    }
+  };
+
   const handleConfirmEmptyTrash = async () => {
     setIsEmptying(true);
     try {
       const result = await onEmptyRecycleBin();
       if (result.success) {
-        success('Recycle Bin Emptied', 'All trashed bookmarks were permanently deleted.');
+        success('Recycle Bin Emptied', 'All items in the Recycle Bin were permanently deleted.');
         setShowEmptyConfirm(false);
       } else {
         error('Failed to Empty Recycle Bin', result.error || 'An error occurred.');
@@ -132,6 +182,9 @@ export const RecycleBinPage: React.FC<RecycleBinPageProps> = ({
       setIsEmptying(false);
     }
   };
+
+  const showBookmarks = filterType === 'all' || filterType === 'bookmarks';
+  const showCollections = filterType === 'all' || filterType === 'collections';
 
   return (
     <>
@@ -142,21 +195,60 @@ export const RecycleBinPage: React.FC<RecycleBinPageProps> = ({
             <span>Recycle Bin</span>
           </h2>
           <p className="text-gray-500 text-sm mt-0.5">
-            {filteredBookmarks.length} {filteredBookmarks.length === 1 ? 'bookmark' : 'bookmarks'} in
-            Recycle Bin • Items older than 15 days are permanently deleted automatically.
+            {totalCount} {totalCount === 1 ? 'item' : 'items'} in Recycle Bin • Items older than 15
+            days are permanently deleted automatically.
           </p>
         </div>
 
-        {deletedBookmarks.length > 0 && (
-          <button
-            type="button"
-            onClick={() => setShowEmptyConfirm(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700 transition-colors shadow-xs cursor-pointer self-start sm:self-auto"
-          >
-            <Trash2 className="w-4 h-4" />
-            <span>Empty Recycle Bin</span>
-          </button>
-        )}
+        <div className="flex items-center gap-2.5 self-start sm:self-auto">
+          {/* Sub-tabs */}
+          <div className="flex items-center bg-gray-100 p-1 rounded-xl text-xs font-medium">
+            <button
+              onClick={() => setFilterType('all')}
+              className={clsx(
+                'px-3 py-1.5 rounded-lg transition-colors cursor-pointer',
+                filterType === 'all'
+                  ? 'bg-white text-gray-900 shadow-xs'
+                  : 'text-gray-600 hover:text-gray-900'
+              )}
+            >
+              All ({totalCount})
+            </button>
+            <button
+              onClick={() => setFilterType('bookmarks')}
+              className={clsx(
+                'px-3 py-1.5 rounded-lg transition-colors cursor-pointer',
+                filterType === 'bookmarks'
+                  ? 'bg-white text-gray-900 shadow-xs'
+                  : 'text-gray-600 hover:text-gray-900'
+              )}
+            >
+              Bookmarks ({filteredBookmarks.length})
+            </button>
+            <button
+              onClick={() => setFilterType('collections')}
+              className={clsx(
+                'px-3 py-1.5 rounded-lg transition-colors cursor-pointer',
+                filterType === 'collections'
+                  ? 'bg-white text-gray-900 shadow-xs'
+                  : 'text-gray-600 hover:text-gray-900'
+              )}
+            >
+              Collections ({filteredCollections.length})
+            </button>
+          </div>
+
+          {(deletedBookmarks.length > 0 || deletedCollections.length > 0) && (
+            <button
+              type="button"
+              onClick={() => setShowEmptyConfirm(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-xl hover:bg-red-700 transition-colors shadow-xs cursor-pointer"
+            >
+              <Trash2 className="w-4 h-4" />
+              <span>Empty Bin</span>
+            </button>
+          )}
+        </div>
       </div>
 
       {loading ? (
@@ -164,136 +256,258 @@ export const RecycleBinPage: React.FC<RecycleBinPageProps> = ({
           <Loader2 className="w-8 h-8 animate-spin mb-4 text-blue-500" />
           <p>Loading Recycle Bin...</p>
         </div>
-      ) : filteredBookmarks.length === 0 ? (
+      ) : totalCount === 0 ? (
         <div className="flex flex-col items-center justify-center h-64 text-gray-400">
           <div className="bg-gray-100 p-6 rounded-full mb-4 text-gray-300">
             <Trash2 className="w-12 h-12" />
           </div>
           <h3 className="text-lg font-medium text-gray-900 mb-1">Recycle Bin is empty</h3>
           <p className="text-sm text-gray-500">
-            Deleted bookmarks will appear here for 15 days before being permanently removed.
+            Deleted bookmarks and collections will appear here for 15 days before being permanently
+            removed.
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {filteredBookmarks.map((bookmark) => {
-            const displayName = bookmark.title || 'Untitled';
-            const daysLeft = getDaysRemaining(bookmark.deleted_at);
-            const isRestoring = restoringIds.has(bookmark.id);
-            const hasImgError = imgErrors.has(bookmark.id);
-
-            let hostname = '';
-            try {
-              hostname = new URL(bookmark.url).hostname;
-            } catch {
-              // Ignore invalid URL
-            }
-
-            const hasValidThumbnail = Boolean(
-              bookmark.thumbnail_path && bookmark.thumbnail_path !== 'pending' && !hasImgError
-            );
-            const imageUrl = hasValidThumbnail
-              ? `asset://${bookmark.thumbnail_path}`
-              : hostname && !hasImgError
-              ? `https://www.google.com/s2/favicons?domain=${hostname}&sz=128`
-              : null;
-
-            return (
-              <div
-                key={bookmark.id}
-                onContextMenu={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  setContextMenu({ bookmark, x: e.clientX, y: e.clientY });
-                }}
-                className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-shadow group flex flex-col"
-              >
-                <div className="relative h-40 w-full bg-gray-100 flex items-center justify-center overflow-hidden">
-                  {imageUrl ? (
-                    <img
-                      src={imageUrl}
-                      alt={displayName}
-                      onError={() =>
-                        setImgErrors((prev) => new Set(prev).add(bookmark.id))
-                      }
-                      className={clsx(
-                        'transition-transform group-hover:scale-105 grayscale-[30%]',
-                        hasValidThumbnail
-                          ? 'w-full h-full object-cover'
-                          : 'w-16 h-16 object-contain opacity-70'
-                      )}
-                    />
-                  ) : (
-                    <Globe className="w-12 h-12 text-gray-300" />
-                  )}
-
-                  {/* Remaining Days Badge */}
-                  <div
-                    className={clsx(
-                      'absolute top-2.5 left-2.5 flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium backdrop-blur shadow-xs border',
-                      daysLeft <= 3
-                        ? 'bg-red-50/95 text-red-700 border-red-200'
-                        : 'bg-white/90 text-gray-700 border-gray-200/80'
-                    )}
-                    title="Automatically deleted after 15 days in Recycle Bin"
-                  >
-                    <Clock className="w-3 h-3" />
-                    <span>
-                      {daysLeft} {daysLeft === 1 ? 'day' : 'days'} left
-                    </span>
-                  </div>
-                </div>
-
-                <div className="p-4 flex flex-col flex-1">
-                  <h3
-                    className="font-semibold text-gray-900 line-clamp-2 leading-tight mb-1"
-                    title={displayName}
-                  >
-                    {displayName}
-                  </h3>
-                  <p className="text-sm text-gray-500 line-clamp-2 mb-4 flex-1">
-                    {bookmark.description || 'No description available.'}
-                  </p>
-
-                  <div className="flex items-center justify-between mt-auto pt-3 border-t border-gray-100">
-                    <a
-                      href={bookmark.url}
-                      onClick={(e) => {
-                        e.preventDefault();
-                        openBookmark(bookmark.url, bookmark.title || undefined);
-                      }}
-                      className="text-xs font-medium text-blue-600 hover:text-blue-800 flex items-center gap-1 cursor-pointer"
-                      title="Visit URL"
-                    >
-                      <ExternalLink className="w-3 h-3" />
-                      Visit Site
-                    </a>
-
-                    <div className="flex items-center gap-1.5">
-                      <button
-                        type="button"
-                        onClick={() => handleRestore(bookmark)}
-                        disabled={isRestoring}
-                        className="flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-md transition-colors cursor-pointer disabled:opacity-50"
-                        title="Restore Bookmark"
-                      >
-                        <RotateCcw className={clsx('w-3.5 h-3.5', isRestoring && 'animate-spin')} />
-                        <span>Restore</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setBookmarkToDelete(bookmark)}
-                        className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors cursor-pointer"
-                        title="Delete Permanently"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-                </div>
+        <div className="space-y-8">
+          {/* Deleted Collections Section */}
+          {showCollections && filteredCollections.length > 0 && (
+            <div>
+              <div className="mb-3 flex items-center gap-2">
+                <Folder className="w-4 h-4 text-indigo-500" />
+                <h3 className="text-sm font-bold uppercase tracking-wider text-gray-500">
+                  Collections ({filteredCollections.length})
+                </h3>
               </div>
-            );
-          })}
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-5">
+                {filteredCollections.map((col) => {
+                  const daysLeft = getDaysRemaining(col.deleted_at);
+                  const isRestoring = restoringColIds.has(col.id);
+
+                  return (
+                    <div
+                      key={col.id}
+                      onContextMenu={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setContextMenu({
+                          item: { type: 'collection', data: col },
+                          x: e.clientX,
+                          y: e.clientY,
+                        });
+                      }}
+                      className="relative flex flex-col items-center justify-between p-4 bg-white rounded-2xl shadow-xs border border-gray-200/80 hover:shadow-md transition-all group select-none"
+                    >
+                      {/* Top Bar with Remaining Days */}
+                      <div className="w-full flex items-center justify-between mb-1">
+                        <span
+                          className={clsx(
+                            'text-[10px] font-medium px-2 py-0.5 rounded-full border',
+                            daysLeft <= 3
+                              ? 'bg-red-50 text-red-700 border-red-200'
+                              : 'bg-gray-100 text-gray-600 border-gray-200'
+                          )}
+                        >
+                          {daysLeft}d left
+                        </span>
+                        <span className="text-[10px] text-gray-400">
+                          {col.bookmark_count ?? 0} items
+                        </span>
+                      </div>
+
+                      {/* Icon Container */}
+                      <div className="w-14 h-14 rounded-2xl bg-indigo-50/60 border border-indigo-100 flex items-center justify-center my-2 shadow-inner">
+                        <Folder className="w-7 h-7 text-indigo-400" />
+                      </div>
+
+                      {/* Name & Description */}
+                      <div className="w-full flex flex-col items-center px-1 min-h-[40px] justify-center mb-2">
+                        <h4
+                          className="font-semibold text-gray-800 text-xs truncate max-w-full text-center"
+                          title={col.name}
+                        >
+                          {col.name}
+                        </h4>
+                        {col.description && (
+                          <span
+                            className="text-[10px] text-gray-400 truncate max-w-full text-center mt-0.5"
+                            title={col.description}
+                          >
+                            {col.description}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Actions */}
+                      <div className="w-full flex items-center justify-between gap-1 pt-2 border-t border-gray-100 mt-auto">
+                        <button
+                          type="button"
+                          onClick={() => handleRestoreCollection(col)}
+                          disabled={isRestoring}
+                          className="flex-1 flex items-center justify-center gap-1 py-1 text-xs font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-lg transition-colors cursor-pointer disabled:opacity-50"
+                          title="Restore Collection"
+                        >
+                          <RotateCcw
+                            className={clsx('w-3 h-3', isRestoring && 'animate-spin')}
+                          />
+                          <span>Restore</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setCollectionToDelete(col)}
+                          className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
+                          title="Delete Permanently"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Deleted Bookmarks Section */}
+          {showBookmarks && filteredBookmarks.length > 0 && (
+            <div>
+              {showCollections && filteredCollections.length > 0 && (
+                <div className="mb-3 flex items-center gap-2">
+                  <Globe className="w-4 h-4 text-blue-500" />
+                  <h3 className="text-sm font-bold uppercase tracking-wider text-gray-500">
+                    Bookmarks ({filteredBookmarks.length})
+                  </h3>
+                </div>
+              )}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                {filteredBookmarks.map((bookmark) => {
+                  const displayName = bookmark.title || 'Untitled';
+                  const daysLeft = getDaysRemaining(bookmark.deleted_at);
+                  const isRestoring = restoringIds.has(bookmark.id);
+                  const hasImgError = imgErrors.has(bookmark.id);
+
+                  let hostname = '';
+                  try {
+                    hostname = new URL(bookmark.url).hostname;
+                  } catch {
+                    // Ignore invalid URL
+                  }
+
+                  const hasValidThumbnail = Boolean(
+                    bookmark.thumbnail_path &&
+                      bookmark.thumbnail_path !== 'pending' &&
+                      !hasImgError
+                  );
+                  const imageUrl = hasValidThumbnail
+                    ? `asset://${bookmark.thumbnail_path}`
+                    : hostname && !hasImgError
+                    ? `https://www.google.com/s2/favicons?domain=${hostname}&sz=128`
+                    : null;
+
+                  return (
+                    <div
+                      key={bookmark.id}
+                      onContextMenu={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setContextMenu({
+                          item: { type: 'bookmark', data: bookmark },
+                          x: e.clientX,
+                          y: e.clientY,
+                        });
+                      }}
+                      className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-shadow group flex flex-col"
+                    >
+                      <div className="relative h-40 w-full bg-gray-100 flex items-center justify-center overflow-hidden">
+                        {imageUrl ? (
+                          <img
+                            src={imageUrl}
+                            alt={displayName}
+                            onError={() =>
+                              setImgErrors((prev) => new Set(prev).add(bookmark.id))
+                            }
+                            className={clsx(
+                              'transition-transform group-hover:scale-105 grayscale-[30%]',
+                              hasValidThumbnail
+                                ? 'w-full h-full object-cover'
+                                : 'w-16 h-16 object-contain opacity-70'
+                            )}
+                          />
+                        ) : (
+                          <Globe className="w-12 h-12 text-gray-300" />
+                        )}
+
+                        {/* Remaining Days Badge */}
+                        <div
+                          className={clsx(
+                            'absolute top-2.5 left-2.5 flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium backdrop-blur shadow-xs border',
+                            daysLeft <= 3
+                              ? 'bg-red-50/95 text-red-700 border-red-200'
+                              : 'bg-white/90 text-gray-700 border-gray-200/80'
+                          )}
+                          title="Automatically deleted after 15 days in Recycle Bin"
+                        >
+                          <Clock className="w-3 h-3" />
+                          <span>
+                            {daysLeft} {daysLeft === 1 ? 'day' : 'days'} left
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="p-4 flex flex-col flex-1">
+                        <h3
+                          className="font-semibold text-gray-900 line-clamp-2 leading-tight mb-1"
+                          title={displayName}
+                        >
+                          {displayName}
+                        </h3>
+                        <p className="text-sm text-gray-500 line-clamp-2 mb-4 flex-1">
+                          {bookmark.description || 'No description available.'}
+                        </p>
+
+                        <div className="flex items-center justify-between mt-auto pt-3 border-t border-gray-100">
+                          <a
+                            href={bookmark.url}
+                            onClick={(e) => {
+                              e.preventDefault();
+                              openBookmark(bookmark.url, bookmark.title || undefined);
+                            }}
+                            className="text-xs font-medium text-blue-600 hover:text-blue-800 flex items-center gap-1 cursor-pointer"
+                            title="Visit URL"
+                          >
+                            <ExternalLink className="w-3 h-3" />
+                            Visit Site
+                          </a>
+
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => handleRestoreBookmark(bookmark)}
+                              disabled={isRestoring}
+                              className="flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-md transition-colors cursor-pointer disabled:opacity-50"
+                              title="Restore Bookmark"
+                            >
+                              <RotateCcw
+                                className={clsx('w-3.5 h-3.5', isRestoring && 'animate-spin')}
+                              />
+                              <span>Restore</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setBookmarkToDelete(bookmark)}
+                              className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors cursor-pointer"
+                              title="Delete Permanently"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -309,13 +523,19 @@ export const RecycleBinPage: React.FC<RecycleBinPageProps> = ({
         >
           <div className="px-2.5 py-1.5 border-b border-gray-100 mb-1">
             <p className="font-semibold text-gray-900 truncate max-w-[190px]">
-              {contextMenu.bookmark.title || 'Untitled'}
+              {contextMenu.item.type === 'bookmark'
+                ? contextMenu.item.data.title || 'Untitled'
+                : contextMenu.item.data.name}
             </p>
           </div>
           <button
             type="button"
             onClick={() => {
-              handleRestore(contextMenu.bookmark);
+              if (contextMenu.item.type === 'bookmark') {
+                handleRestoreBookmark(contextMenu.item.data);
+              } else {
+                handleRestoreCollection(contextMenu.item.data);
+              }
               setContextMenu(null);
             }}
             className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-left text-gray-700 hover:bg-emerald-50 hover:text-emerald-700 transition-colors cursor-pointer"
@@ -330,7 +550,11 @@ export const RecycleBinPage: React.FC<RecycleBinPageProps> = ({
           <button
             type="button"
             onClick={() => {
-              setBookmarkToDelete(contextMenu.bookmark);
+              if (contextMenu.item.type === 'bookmark') {
+                setBookmarkToDelete(contextMenu.item.data);
+              } else {
+                setCollectionToDelete(contextMenu.item.data);
+              }
               setContextMenu(null);
             }}
             className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-left text-red-600 hover:bg-red-50 hover:text-red-700 transition-colors cursor-pointer"
@@ -350,8 +574,66 @@ export const RecycleBinPage: React.FC<RecycleBinPageProps> = ({
           bookmark={bookmarkToDelete}
           isPermanent={true}
           onClose={() => setBookmarkToDelete(null)}
-          onConfirm={handleConfirmPermanentDelete}
+          onConfirm={handleConfirmPermanentDeleteBookmark}
         />
+      )}
+
+      {/* Single Collection Permanent Delete Confirmation Modal */}
+      {collectionToDelete && (
+        <div
+          className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-in fade-in duration-150"
+          onClick={() => setCollectionToDelete(null)}
+        >
+          <div
+            className="bg-white rounded-2xl shadow-2xl border border-gray-200 max-w-md w-full overflow-hidden animate-in zoom-in-95 duration-150 text-gray-800"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start justify-between p-6 pb-4 border-b border-gray-100">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-xl bg-red-50 border border-red-100 flex items-center justify-center text-red-600 shrink-0">
+                  <AlertTriangle className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-gray-900 leading-tight">
+                    Delete Collection Permanently?
+                  </h3>
+                  <p className="text-xs text-gray-500 mt-0.5">This action cannot be undone</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setCollectionToDelete(null)}
+                className="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-6">
+              <p className="text-sm text-gray-600 leading-relaxed">
+                Are you sure you want to permanently delete the collection{' '}
+                <strong className="text-gray-900">"{collectionToDelete.name}"</strong>? It will be
+                removed from the database immediately and cannot be recovered.
+              </p>
+            </div>
+            <div className="flex items-center justify-end gap-3 p-4 bg-gray-50 border-t border-gray-100">
+              <button
+                type="button"
+                onClick={() => setCollectionToDelete(null)}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-xl hover:bg-gray-100 transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmPermanentDeleteCollection}
+                className="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-xl transition-all shadow-sm flex items-center gap-2 cursor-pointer"
+              >
+                <Trash2 className="w-4 h-4" />
+                <span>Delete Permanently</span>
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Empty Recycle Bin Confirmation Modal */}
@@ -390,8 +672,7 @@ export const RecycleBinPage: React.FC<RecycleBinPageProps> = ({
               <p className="text-sm text-gray-600 leading-relaxed">
                 Are you sure you want to permanently delete all{' '}
                 <strong className="text-gray-900">
-                  {deletedBookmarks.length}{' '}
-                  {deletedBookmarks.length === 1 ? 'bookmark' : 'bookmarks'}
+                  {totalCount} {totalCount === 1 ? 'item' : 'items'}
                 </strong>{' '}
                 in the Recycle Bin? Once deleted, they cannot be recovered.
               </p>

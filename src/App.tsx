@@ -9,6 +9,7 @@ import { SettingsPage } from './pages/SettingsPage';
 import { LoginPage } from './pages/LoginPage';
 import { JobsPage } from './pages/JobsPage';
 import { useBookmarks } from './hooks/useBookmarks';
+import { useCollections } from './hooks/useCollections';
 import { useAuth } from './hooks/useAuth';
 import { useToast } from './context/ToastContext';
 import { Loader2 } from 'lucide-react';
@@ -23,12 +24,12 @@ const App: React.FC = () => {
   const {
     bookmarks,
     deletedBookmarks,
-    loading,
+    loading: bookmarksLoading,
     addBookmark,
     deleteBookmark,
     restoreBookmark,
     permanentDeleteBookmark,
-    emptyRecycleBin,
+    emptyRecycleBin: emptyBookmarkTrash,
     toggleFavorite,
     toggleImportant,
     updateBookmark,
@@ -36,8 +37,30 @@ const App: React.FC = () => {
     refresh: refreshBookmarks
   } = useBookmarks(isAuthenticated);
 
+  const {
+    deletedCollections,
+    loading: collectionsLoading,
+    restoreCollection,
+    permanentDeleteCollection,
+    emptyCollectionTrash,
+    refresh: refreshCollections
+  } = useCollections(isAuthenticated);
+
+  const loading = bookmarksLoading || collectionsLoading;
+  const totalTrashCount = deletedBookmarks.length + deletedCollections.length;
+
+  const handleEmptyRecycleBin = async () => {
+    const bookmarkRes = await emptyBookmarkTrash();
+    const colRes = await emptyCollectionTrash();
+    if (bookmarkRes.success || colRes.success) {
+      return { success: true, count: (bookmarkRes.count || 0) + (colRes.count || 0) };
+    }
+    return { success: false, error: bookmarkRes.error || colRes.error };
+  };
+
   const refreshAllData = () => {
     refreshBookmarks();
+    refreshCollections();
     // Soft reload by resetting state if needed
     window.location.reload(); // Simple full reload as fallback for wiping data across pages
   };
@@ -111,13 +134,13 @@ const App: React.FC = () => {
       isAdding={isAdding}
       hasPassword={hasPassword}
       onLock={lock}
-      trashCount={deletedBookmarks.length}
+      trashCount={totalTrashCount}
     >
       {(currentTab === 'all' || currentTab === 'favorites' || currentTab === 'important') && (
             <BookmarksPage 
               type={currentTab as any}
               bookmarks={bookmarks}
-              loading={loading}
+              loading={bookmarksLoading}
               onDeleteBookmark={deleteBookmark}
               onToggleFavorite={toggleFavorite}
               onToggleImportant={toggleImportant}
@@ -162,11 +185,14 @@ const App: React.FC = () => {
           {currentTab === 'trash' && (
             <RecycleBinPage
               deletedBookmarks={deletedBookmarks}
+              deletedCollections={deletedCollections}
               loading={loading}
               searchQuery={searchQuery}
               onRestoreBookmark={restoreBookmark}
               onPermanentDeleteBookmark={permanentDeleteBookmark}
-              onEmptyRecycleBin={emptyRecycleBin}
+              onEmptyRecycleBin={handleEmptyRecycleBin}
+              onRestoreCollection={restoreCollection}
+              onPermanentDeleteCollection={permanentDeleteCollection}
             />
           )}
 

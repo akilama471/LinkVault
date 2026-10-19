@@ -1,14 +1,22 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Collection } from '../types/models';
 
-export function useCollections() {
+export function useCollections(isAuthenticated = true) {
   const [collections, setCollections] = useState<Collection[]>([]);
+  const [deletedCollections, setDeletedCollections] = useState<Collection[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchCollections = useCallback(async () => {
+  const fetchCollections = useCallback(async (silent = false) => {
+    if (!isAuthenticated) {
+      setCollections([]);
+      setDeletedCollections([]);
+      setLoading(false);
+      return;
+    }
+
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
       setError(null);
       // @ts-ignore
       const result = await window.electronAPI.collections.getAll();
@@ -17,25 +25,31 @@ export function useCollections() {
       } else {
         setError(result.error);
       }
+
+      // @ts-ignore
+      const deletedResult = await window.electronAPI.collections.getDeleted?.();
+      if (deletedResult && deletedResult.success) {
+        setDeletedCollections(deletedResult.data);
+      }
     } catch (err: any) {
       setError(err.message);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
-  }, []);
+  }, [isAuthenticated]);
 
   const createCollection = async (name: string, description?: string) => {
     try {
       // @ts-ignore
       const result = await window.electronAPI.collections.create(name, description);
       if (result.success) {
-        await fetchCollections();
-        return result.data;
+        await fetchCollections(true);
+        return { success: true, data: result.data };
       }
-      return null;
-    } catch (err) {
+      return { success: false, error: result.error };
+    } catch (err: any) {
       console.error(err);
-      return null;
+      return { success: false, error: err.message };
     }
   };
 
@@ -44,28 +58,92 @@ export function useCollections() {
       // @ts-ignore
       const result = await window.electronAPI.collections.rename(id, newName, description);
       if (result.success) {
-        await fetchCollections();
-        return true;
+        setCollections(prev => prev.map(c => c.id === id ? (result.data || { ...c, name: newName }) : c));
+        return { success: true, data: result.data };
       }
-      return false;
-    } catch (err) {
+      return { success: false, error: result.error };
+    } catch (err: any) {
       console.error(err);
-      return false;
+      return { success: false, error: err.message };
     }
   };
 
-  const deleteCollection = async (id: number) => {
+  const refetchCollection = async (id: number) => {
     try {
       // @ts-ignore
-      const result = await window.electronAPI.collections.delete(id);
+      const result = await window.electronAPI.collections.refetch(id);
       if (result.success) {
-        await fetchCollections();
-        return true;
+        if (result.data) {
+          setCollections(prev => prev.map(c => c.id === id ? result.data : c));
+        }
+        return { success: true, data: result.data };
       }
-      return false;
-    } catch (err) {
+      return { success: false, error: result.error };
+    } catch (err: any) {
       console.error(err);
-      return false;
+      return { success: false, error: err.message };
+    }
+  };
+
+  const deleteCollection = async (id: number, deleteBookmarks = false) => {
+    try {
+      // @ts-ignore
+      const result = await window.electronAPI.collections.delete(id, deleteBookmarks);
+      if (result.success) {
+        setCollections(prev => prev.filter(c => c.id !== id));
+        await fetchCollections(true);
+        return { success: true };
+      }
+      return { success: false, error: result.error };
+    } catch (err: any) {
+      console.error(err);
+      return { success: false, error: err.message };
+    }
+  };
+
+  const restoreCollection = async (id: number) => {
+    try {
+      // @ts-ignore
+      const result = await window.electronAPI.collections.restore(id);
+      if (result.success) {
+        setDeletedCollections(prev => prev.filter(c => c.id !== id));
+        await fetchCollections(true);
+        return { success: true, data: result.data };
+      }
+      return { success: false, error: result.error };
+    } catch (err: any) {
+      console.error(err);
+      return { success: false, error: err.message };
+    }
+  };
+
+  const permanentDeleteCollection = async (id: number) => {
+    try {
+      // @ts-ignore
+      const result = await window.electronAPI.collections.permanentDelete(id);
+      if (result.success) {
+        setDeletedCollections(prev => prev.filter(c => c.id !== id));
+        return { success: true };
+      }
+      return { success: false, error: result.error };
+    } catch (err: any) {
+      console.error(err);
+      return { success: false, error: err.message };
+    }
+  };
+
+  const emptyCollectionTrash = async () => {
+    try {
+      // @ts-ignore
+      const result = await window.electronAPI.collections.emptyTrash();
+      if (result.success) {
+        setDeletedCollections([]);
+        return { success: true, count: result.count };
+      }
+      return { success: false, error: result.error };
+    } catch (err: any) {
+      console.error(err);
+      return { success: false, error: err.message };
     }
   };
 
@@ -85,15 +163,34 @@ export function useCollections() {
 
   useEffect(() => {
     fetchCollections();
+
+    // @ts-ignore
+    const unsubCols = window.electronAPI.events?.onCollectionsUpdated?.(() => {
+      fetchCollections(true);
+    });
+    // @ts-ignore
+    const unsubBookmarks = window.electronAPI.events?.onBookmarksUpdated?.(() => {
+      fetchCollections(true);
+    });
+
+    return () => {
+      if (unsubCols) unsubCols();
+      if (unsubBookmarks) unsubBookmarks();
+    };
   }, [fetchCollections]);
 
   return {
     collections,
+    deletedCollections,
     loading,
     error,
     createCollection,
     renameCollection,
+    refetchCollection,
     deleteCollection,
+    restoreCollection,
+    permanentDeleteCollection,
+    emptyCollectionTrash,
     getBookmarkIds,
     refresh: fetchCollections
   };

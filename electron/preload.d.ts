@@ -29,9 +29,14 @@ export declare const electronAPI: {
     };
     collections: {
         getAll: () => Promise<any>;
+        getDeleted: () => Promise<any>;
         create: (name: string, description?: string) => Promise<any>;
         rename: (id: number, newName: string, description?: string) => Promise<any>;
-        delete: (id: number) => Promise<any>;
+        refetch: (id: number) => Promise<any>;
+        delete: (id: number, deleteBookmarks?: boolean) => Promise<any>;
+        restore: (id: number) => Promise<any>;
+        permanentDelete: (id: number) => Promise<any>;
+        emptyTrash: () => Promise<any>;
         getForBookmark: (bookmarkId: number) => Promise<any>;
         setForBookmark: (bookmarkId: number, colNames: string[]) => Promise<any>;
         getBookmarkIds: (collectionId: number) => Promise<any>;
@@ -68,6 +73,7 @@ export declare const electronAPI: {
     events: {
         onBookmarksUpdated: (callback: () => void) => () => Electron.IpcRenderer;
         onDomainsUpdated: (callback: () => void) => () => Electron.IpcRenderer;
+        onCollectionsUpdated: (callback: () => void) => () => Electron.IpcRenderer;
         onJobsUpdated: (callback: () => void) => () => Electron.IpcRenderer;
     };
     jobs: {
