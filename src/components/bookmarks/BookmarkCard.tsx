@@ -2,6 +2,7 @@ import React from 'react';
 import { Bookmark as BookmarkModel } from '../../types/models';
 import { ExternalLink, Star, Trash2, Flag, Edit2 } from 'lucide-react';
 import clsx from 'clsx';
+import { useBookmarkOpener } from '../../context/BookmarkOpenerContext';
 
 interface BookmarkCardProps {
   bookmark: BookmarkModel;
@@ -12,6 +13,7 @@ interface BookmarkCardProps {
 }
 
 export const BookmarkCard: React.FC<BookmarkCardProps> = ({ bookmark, onDelete, onToggleFavorite, onToggleImportant, onEdit }) => {
+  const { openBookmark } = useBookmarkOpener();
   
   let hostname = '';
   try {
@@ -76,9 +78,12 @@ export const BookmarkCard: React.FC<BookmarkCardProps> = ({ bookmark, onDelete, 
         <div className="flex items-center justify-between mt-auto pt-3 border-t border-gray-100">
           <a 
             href={bookmark.url} 
-            target="_blank" 
-            rel="noopener noreferrer"
-            className="text-xs font-medium text-blue-600 hover:text-blue-800 flex items-center gap-1"
+            onClick={(e) => {
+              e.preventDefault();
+              openBookmark(bookmark.url, bookmark.title || undefined);
+            }}
+            className="text-xs font-medium text-blue-600 hover:text-blue-800 flex items-center gap-1 cursor-pointer"
+            title="Visit URL"
           >
             <ExternalLink className="w-3 h-3" />
             Visit Site

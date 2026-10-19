@@ -48,6 +48,15 @@ export declare const electronAPI: {
             url: string;
         }[]) => Promise<any>;
     };
+    browser: {
+        getDefault: () => Promise<any>;
+        setDefault: (browser: string) => Promise<any>;
+        getStatuses: () => Promise<any>;
+        setCustomPath: (browser: string, customPath: string) => Promise<any>;
+        clearCustomPath: (browser: string) => Promise<any>;
+        browseExecutable: (browser: string) => Promise<any>;
+        openUrl: (url: string, browserName?: string) => Promise<any>;
+    };
     events: {
         onBookmarksUpdated: (callback: () => void) => () => Electron.IpcRenderer;
         onJobsUpdated: (callback: () => void) => () => Electron.IpcRenderer;
@@ -55,7 +64,7 @@ export declare const electronAPI: {
     jobs: {
         getEnrichmentLogs: () => Promise<any>;
     };
-    clipboard?: {
-        readText: () => string;
+    clipboard: {
+        readText: () => Promise<string>;
     };
 };

@@ -1,5 +1,6 @@
 import React from 'react';
 import { SecuritySettings } from './SecuritySettings';
+import { BrowserSettings } from './BrowserSettings';
 import { BrowserImportSettings } from './BrowserImportSettings';
 import { BackupSettings } from './BackupSettings';
 import { DangerZoneSettings } from './DangerZoneSettings';
@@ -14,7 +15,7 @@ interface SettingsViewProps {
 export const SettingsView: React.FC<SettingsViewProps> = ({ 
   hasPassword, 
   onSetPassword, 
-  onRemovePassword,
+  onRemovePassword, 
   onRefreshAll 
 }) => {
   return (
@@ -24,6 +25,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         onSetPassword={onSetPassword} 
         onRemovePassword={onRemovePassword}
       />
+      <BrowserSettings />
       <BrowserImportSettings onRefreshAll={onRefreshAll} />
       <BackupSettings />
       <DangerZoneSettings onRefreshAll={onRefreshAll} />

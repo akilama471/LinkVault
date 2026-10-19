@@ -11,6 +11,8 @@ import { protocol } from 'electron';
 import fs from 'node:fs';
 import { registerAuthController } from './controllers/auth.controller';
 import { registerBackupController } from './controllers/backup.controller';
+import { registerBrowserLauncherController } from './controllers/browser-launcher.controller';
+import { browserLauncherService } from './services/browser-launcher.service';
 import { dbManager } from './database/db';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -60,7 +62,7 @@ function createWindow() {
 
   win.webContents.setWindowOpenHandler(({ url }) => {
     if (url.startsWith('http')) {
-      import('electron').then(({ shell }) => shell.openExternal(url));
+      browserLauncherService.openUrl(url).catch(console.error);
     }
     return { action: 'deny' };
   });
@@ -124,6 +126,7 @@ app.whenReady().then(() => {
   registerCollectionController();
   registerBrowserImportController();
   registerBackupController();
+  registerBrowserLauncherController();
   
   // Start background jobs
   enrichmentService.startEnrichmentJob();

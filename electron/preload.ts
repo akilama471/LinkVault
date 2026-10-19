@@ -48,6 +48,15 @@ export const electronAPI = {
     extract: (browser: string, profilePath: string) => ipcRenderer.invoke('import:extract', browser, profilePath),
     execute: (bookmarks: { title: string; url: string }[]) => ipcRenderer.invoke('import:execute', bookmarks)
   },
+  browser: {
+    getDefault: () => ipcRenderer.invoke('settings:getDefaultBrowser'),
+    setDefault: (browser: string) => ipcRenderer.invoke('settings:setDefaultBrowser', browser),
+    getStatuses: () => ipcRenderer.invoke('settings:getBrowserStatuses'),
+    setCustomPath: (browser: string, customPath: string) => ipcRenderer.invoke('settings:setCustomBrowserPath', browser, customPath),
+    clearCustomPath: (browser: string) => ipcRenderer.invoke('settings:clearCustomBrowserPath', browser),
+    browseExecutable: (browser: string) => ipcRenderer.invoke('settings:browseBrowserExecutable', browser),
+    openUrl: (url: string, browserName?: string) => ipcRenderer.invoke('browser:openUrl', url, browserName)
+  },
   events: {
     onBookmarksUpdated: (callback: () => void) => {
       const listener = () => callback();

@@ -16,6 +16,10 @@ export declare class BrowserImportService {
     importBookmarks(bookmarks: {
         title: string;
         url: string;
-    }[]): Promise<number>;
+    }[]): Promise<{
+        imported: number;
+        duplicates: number;
+        total: number;
+    }>;
 }
 export declare const browserImportService: BrowserImportService;
