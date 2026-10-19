@@ -31,6 +31,7 @@ export declare const electronAPI: {
     auth: {
         hasPassword: () => Promise<any>;
         setPassword: (password: string) => Promise<any>;
+        removePassword: () => Promise<any>;
         verifyPassword: (password: string) => Promise<any>;
         lock: () => Promise<any>;
     };
@@ -53,5 +54,8 @@ export declare const electronAPI: {
     };
     jobs: {
         getEnrichmentLogs: () => Promise<any>;
+    };
+    clipboard?: {
+        readText: () => string;
     };
 };

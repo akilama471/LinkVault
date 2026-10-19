@@ -15,13 +15,22 @@ export class BookmarkService {
     }
 
     // 1. Check if it already exists
-    const existing = bookmarkModel.findByUrl(url);
+    const altUrl = url.endsWith('/') ? url.slice(0, -1) : url + '/';
+    const existing = bookmarkModel.findByUrl(url) || bookmarkModel.findByUrl(altUrl);
     if (existing) {
       throw new Error('Bookmark already exists');
     }
 
     // 2. Fetch Metadata
     const metadata = await metadataService.extractMetadata(url);
+
+    if (metadata.url) {
+      const altMetaUrl = metadata.url.endsWith('/') ? metadata.url.slice(0, -1) : metadata.url + '/';
+      const existingMeta = bookmarkModel.findByUrl(metadata.url) || bookmarkModel.findByUrl(altMetaUrl);
+      if (existingMeta) {
+        throw new Error('Bookmark already exists');
+      }
+    }
 
     // 3. Handle Domain & Favicon caching
     const domain = await domainService.getOrCreateDomain(metadata.domain, metadata.faviconUrl);
@@ -52,7 +61,14 @@ export class BookmarkService {
       });
     });
 
-    return createTransaction();
+    try {
+      return createTransaction();
+    } catch (err: any) {
+      if (err.message && err.message.includes('UNIQUE constraint failed')) {
+        throw new Error('Bookmark already exists');
+      }
+      throw err;
+    }
   }
 
   public getAllBookmarks(): Bookmark[] {

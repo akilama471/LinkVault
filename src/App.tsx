@@ -9,6 +9,7 @@ import { LoginPage } from './pages/LoginPage';
 import { JobsPage } from './pages/JobsPage';
 import { useBookmarks } from './hooks/useBookmarks';
 import { useAuth } from './hooks/useAuth';
+import { useToast } from './context/ToastContext';
 import { Loader2 } from 'lucide-react';
 
 const App: React.FC = () => {
@@ -16,6 +17,7 @@ const App: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [newUrl, setNewUrl] = useState('');
   const [isAdding, setIsAdding] = useState(false);
+  const { warning, error, success } = useToast();
   const { hasPassword, isAuthenticated, loading: authLoading, verifyPassword, setPassword, removePassword, lock } = useAuth();
   const { bookmarks, loading, addBookmark, deleteBookmark, toggleFavorite, toggleImportant, updateBookmark, refresh: refreshBookmarks } = useBookmarks(isAuthenticated);
 
@@ -38,14 +40,36 @@ const App: React.FC = () => {
     setSearchQuery('');
   };
 
-  const handleAddSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newUrl) return;
+  const handleAddSubmit = async (e?: React.FormEvent, urlOverride?: string) => {
+    if (e) e.preventDefault();
+    const targetUrl = (urlOverride || newUrl).trim();
+    if (!targetUrl) return;
     
     setIsAdding(true);
-    await addBookmark(newUrl);
+    const result = await addBookmark(targetUrl);
     setNewUrl('');
     setIsAdding(false);
+
+    if (result && !result.success) {
+      const err = (result.error || '').toLowerCase();
+      if (
+        err.includes('already exists') ||
+        err.includes('unique constraint') ||
+        err.includes('duplicate')
+      ) {
+        warning(
+          'Already Added Bookmark',
+          'This bookmark is already in your bookmark list.'
+        );
+      } else {
+        error(
+          'Failed to add bookmark',
+          result.error || 'An error occurred while adding the bookmark.'
+        );
+      }
+    } else if (result && result.success) {
+      success('Bookmark Added', 'Bookmark has been added successfully.');
+    }
   };
 
   if (authLoading) {

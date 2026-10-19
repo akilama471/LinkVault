@@ -9,7 +9,7 @@ interface MainLayoutProps {
   onSearchChange: (value: string) => void;
   newUrl: string;
   onUrlChange: (value: string) => void;
-  onAddSubmit: (e: React.FormEvent) => void;
+  onAddSubmit: (e?: React.FormEvent, urlOverride?: string) => void;
   isAdding: boolean;
   hasPassword?: boolean;
   onLock?: () => void;

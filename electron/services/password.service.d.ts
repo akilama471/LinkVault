@@ -7,6 +7,7 @@ export declare class PasswordService {
     private setStoredHash;
     hasPasswordSet(): boolean;
     setPassword(password: string): Promise<boolean>;
+    removePassword(): Promise<boolean>;
     verifyPassword(password: string): Promise<boolean>;
     lock(): void;
     checkAuth(): void;

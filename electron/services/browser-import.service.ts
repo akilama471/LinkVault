@@ -156,8 +156,8 @@ export class BrowserImportService {
     return bookmarks;
   }
 
-  public async importBookmarks(bookmarks: { title: string; url: string }[]): Promise<number> {
-    if (!bookmarks || bookmarks.length === 0) return 0;
+  public async importBookmarks(bookmarks: { title: string; url: string }[]): Promise<{ imported: number; duplicates: number; total: number }> {
+    if (!bookmarks || bookmarks.length === 0) return { imported: 0, duplicates: 0, total: 0 };
 
     const db = dbManager.getDb();
     const insert = db.prepare(`
@@ -185,6 +185,7 @@ export class BrowserImportService {
     };
     
     let importedCount = 0;
+    let duplicateCount = 0;
     const CHUNK_SIZE = 100;
     
     for (let i = 0; i < bookmarks.length; i += CHUNK_SIZE) {
@@ -193,13 +194,21 @@ export class BrowserImportService {
         for (const b of chunk) {
           const domainId = getDomainIdSync(b.url);
           const info = insert.run(b.url, b.title, domainId);
-          if (info.changes > 0) importedCount++;
+          if (info.changes > 0) {
+            importedCount++;
+          } else {
+            duplicateCount++;
+          }
         }
       })();
       // Yield to event loop to prevent UI blocking
       await new Promise(resolve => setTimeout(resolve, 0));
     }
-    return importedCount;
+    return {
+      imported: importedCount,
+      duplicates: duplicateCount,
+      total: bookmarks.length
+    };
   }
 }
 

@@ -1,4 +1,4 @@
-import { contextBridge, ipcRenderer } from 'electron';
+import { contextBridge, ipcRenderer, clipboard } from 'electron';
 
 // --- IPC API ---
 export const electronAPI = {
@@ -62,6 +62,9 @@ export const electronAPI = {
   },
   jobs: {
     getEnrichmentLogs: () => ipcRenderer.invoke('jobs:getEnrichmentLogs')
+  },
+  clipboard: {
+    readText: () => clipboard.readText()
   }
 };
 

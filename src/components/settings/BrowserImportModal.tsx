@@ -32,7 +32,11 @@ export const BrowserImportModal: React.FC<BrowserImportModalProps> = ({ onClose,
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [importCount, setImportCount] = useState<number>(0);
+  const [importResult, setImportResult] = useState<{ imported: number; duplicates: number; total: number }>({
+    imported: 0,
+    duplicates: 0,
+    total: 0
+  });
 
   const handleBrowserSelect = async (browserId: string) => {
     setSelectedBrowser(browserId);
@@ -88,7 +92,15 @@ export const BrowserImportModal: React.FC<BrowserImportModalProps> = ({ onClose,
       // @ts-ignore
       const res = await window.electronAPI.browserImport.execute(bookmarksToImport);
       if (res.success) {
-        setImportCount(res.data);
+        if (typeof res.data === 'number') {
+          setImportResult({
+            imported: res.data,
+            duplicates: bookmarksToImport.length - res.data,
+            total: bookmarksToImport.length
+          });
+        } else if (res.data) {
+          setImportResult(res.data);
+        }
         setStep(4);
         onImportComplete();
       } else {
@@ -274,17 +286,33 @@ export const BrowserImportModal: React.FC<BrowserImportModalProps> = ({ onClose,
           )}
 
           {step === 4 && (
-            <div className="flex flex-col items-center justify-center py-8 text-center">
+            <div className="flex flex-col items-center justify-center py-6 text-center px-4">
               <div className="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mb-4">
                 <CheckCircle2 className="w-8 h-8" />
               </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-2">Import Successful</h3>
-              <p className="text-gray-600 mb-6">
-                Successfully imported <strong>{importCount}</strong> bookmarks!
+              <h3 className="text-xl font-bold text-gray-900 mb-1">Import Completed</h3>
+              <p className="text-sm text-gray-500 mb-6">
+                Bulk import operation finished.
               </p>
+
+              <div className="grid grid-cols-2 gap-4 w-full max-w-sm mb-6">
+                <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 flex flex-col items-center justify-center">
+                  <span className="text-3xl font-extrabold text-emerald-600">{importResult.imported}</span>
+                  <span className="text-xs font-semibold text-emerald-800 uppercase tracking-wider mt-1">Added URLs</span>
+                </div>
+                <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex flex-col items-center justify-center">
+                  <span className="text-3xl font-extrabold text-amber-600">{importResult.duplicates}</span>
+                  <span className="text-xs font-semibold text-amber-800 uppercase tracking-wider mt-1">Skipped Duplicates</span>
+                </div>
+              </div>
+
+              <p className="text-xs text-gray-500 mb-6">
+                Total processed bookmarks: <strong className="text-gray-700">{importResult.total}</strong>
+              </p>
+
               <button
                 onClick={onClose}
-                className="px-6 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors"
+                className="w-full max-w-xs py-2.5 bg-blue-600 text-white font-medium rounded-xl hover:bg-blue-700 transition-colors shadow-sm cursor-pointer"
               >
                 Done
               </button>
