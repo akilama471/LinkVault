@@ -11,7 +11,8 @@ interface TagsPageProps {
   onDeleteBookmark: (id: number) => void;
   onToggleFavorite: (id: number, current: boolean) => void;
   onToggleImportant: (id: number, current: boolean) => void;
-  onUpdateBookmark: (id: number, data: Partial<Bookmark>) => void;
+  onUpdateBookmark: (id: number, data: Partial<Bookmark>) => any;
+  onRefetchBookmark?: (id: number) => Promise<{ success: boolean; data?: Bookmark; error?: string }>;
 }
 
 export const TagsPage: React.FC<TagsPageProps> = ({ 
@@ -19,7 +20,8 @@ export const TagsPage: React.FC<TagsPageProps> = ({
   onDeleteBookmark, 
   onToggleFavorite, 
   onToggleImportant, 
-  onUpdateBookmark 
+  onUpdateBookmark,
+  onRefetchBookmark
 }) => {
   const { tags, loading, createTag, renameTag, deleteTag, getBookmarkIds } = useTags();
   const [selectedTag, setSelectedTag] = useState<Tag | null>(null);
@@ -111,6 +113,8 @@ export const TagsPage: React.FC<TagsPageProps> = ({
               onToggleFavorite={onToggleFavorite}
               onToggleImportant={onToggleImportant}
               onEdit={setEditingBookmark}
+              onUpdate={onUpdateBookmark}
+              onRefetch={onRefetchBookmark}
             />
           ))}
         </div>

@@ -19,6 +19,7 @@ export interface UpdateBookmarkDTO {
   domain_id?: number | null;
   thumbnail_path?: string | null;
   preview_path?: string | null;
+  deleted_at?: string | null;
 }
 
 export class BookmarkModel {
@@ -70,6 +71,7 @@ export class BookmarkModel {
     if (data.domain_id !== undefined) { updates.push('domain_id = ?'); values.push(data.domain_id); }
     if (data.thumbnail_path !== undefined) { updates.push('thumbnail_path = ?'); values.push(data.thumbnail_path); }
     if (data.preview_path !== undefined) { updates.push('preview_path = ?'); values.push(data.preview_path); }
+    if (data.deleted_at !== undefined) { updates.push('deleted_at = ?'); values.push(data.deleted_at); }
     
     if (updates.length === 0) return this.findById(id)!;
 
@@ -82,14 +84,62 @@ export class BookmarkModel {
     return this.findById(id)!;
   }
 
+  /**
+   * Moves a bookmark to the Recycle Bin (soft delete).
+   */
   public delete(id: number): void {
+    const db = dbManager.getDb();
+    db.prepare('UPDATE bookmarks SET deleted_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(id);
+  }
+
+  /**
+   * Restores a bookmark from the Recycle Bin.
+   */
+  public restore(id: number): Bookmark | null {
+    const db = dbManager.getDb();
+    db.prepare('UPDATE bookmarks SET deleted_at = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(id);
+    return this.findById(id);
+  }
+
+  /**
+   * Permanently deletes a bookmark from the database.
+   */
+  public permanentDelete(id: number): void {
     const db = dbManager.getDb();
     db.prepare('DELETE FROM bookmarks WHERE id = ?').run(id);
   }
 
+  /**
+   * Permanently deletes all bookmarks currently in the Recycle Bin.
+   */
+  public emptyTrash(): number {
+    const db = dbManager.getDb();
+    const info = db.prepare('DELETE FROM bookmarks WHERE deleted_at IS NOT NULL').run();
+    return info.changes;
+  }
+
+  /**
+   * Permanently deletes bookmarks in the Recycle Bin older than the specified number of days (default 15).
+   */
+  public purgeExpiredTrash(days = 15): number {
+    const db = dbManager.getDb();
+    const info = db.prepare(`
+      DELETE FROM bookmarks
+      WHERE deleted_at IS NOT NULL
+        AND (julianday('now') - julianday(deleted_at)) >= ?
+    `).run(days);
+    return info.changes;
+  }
+
   public getAll(): Bookmark[] {
     const db = dbManager.getDb();
-    const rows = db.prepare('SELECT * FROM bookmarks ORDER BY created_at DESC').all();
+    const rows = db.prepare('SELECT * FROM bookmarks WHERE deleted_at IS NULL ORDER BY created_at DESC').all();
+    return rows.map((row: any) => this.mapRow(row));
+  }
+
+  public getDeleted(): Bookmark[] {
+    const db = dbManager.getDb();
+    const rows = db.prepare('SELECT * FROM bookmarks WHERE deleted_at IS NOT NULL ORDER BY deleted_at DESC').all();
     return rows.map((row: any) => this.mapRow(row));
   }
 
@@ -98,7 +148,7 @@ export class BookmarkModel {
     const rows = db.prepare(`
       SELECT b.* FROM bookmarks b
       JOIN bookmarks_fts fts ON b.id = fts.rowid
-      WHERE bookmarks_fts MATCH ?
+      WHERE bookmarks_fts MATCH ? AND b.deleted_at IS NULL
       ORDER BY rank
     `).all(query);
     return rows.map((row: any) => this.mapRow(row));

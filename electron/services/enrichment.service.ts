@@ -78,7 +78,7 @@ class EnrichmentService {
         // Fetch 5 bookmarks that have thumbnail_path='pending' (indicating they were freshly imported)
         const pendingBookmarks = dbManager.getDb().prepare(`
           SELECT id, url, title FROM bookmarks 
-          WHERE thumbnail_path = 'pending'
+          WHERE thumbnail_path = 'pending' AND deleted_at IS NULL
           LIMIT 5
         `).all() as { id: number; url: string; title: string | null }[];
 

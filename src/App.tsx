@@ -4,6 +4,7 @@ import { BookmarksPage } from './pages/BookmarksPage';
 import { DomainsPage } from './pages/DomainsPage';
 import { TagsPage } from './pages/TagsPage';
 import { CollectionsPage } from './pages/CollectionsPage';
+import { RecycleBinPage } from './pages/RecycleBinPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { LoginPage } from './pages/LoginPage';
 import { JobsPage } from './pages/JobsPage';
@@ -19,7 +20,21 @@ const App: React.FC = () => {
   const [isAdding, setIsAdding] = useState(false);
   const { warning, error, success } = useToast();
   const { hasPassword, isAuthenticated, loading: authLoading, verifyPassword, setPassword, removePassword, lock } = useAuth();
-  const { bookmarks, loading, addBookmark, deleteBookmark, toggleFavorite, toggleImportant, updateBookmark, refresh: refreshBookmarks } = useBookmarks(isAuthenticated);
+  const {
+    bookmarks,
+    deletedBookmarks,
+    loading,
+    addBookmark,
+    deleteBookmark,
+    restoreBookmark,
+    permanentDeleteBookmark,
+    emptyRecycleBin,
+    toggleFavorite,
+    toggleImportant,
+    updateBookmark,
+    refetchBookmark,
+    refresh: refreshBookmarks
+  } = useBookmarks(isAuthenticated);
 
   const refreshAllData = () => {
     refreshBookmarks();
@@ -96,6 +111,7 @@ const App: React.FC = () => {
       isAdding={isAdding}
       hasPassword={hasPassword}
       onLock={lock}
+      trashCount={deletedBookmarks.length}
     >
       {(currentTab === 'all' || currentTab === 'favorites' || currentTab === 'important') && (
             <BookmarksPage 
@@ -106,6 +122,7 @@ const App: React.FC = () => {
               onToggleFavorite={toggleFavorite}
               onToggleImportant={toggleImportant}
               onUpdateBookmark={updateBookmark}
+              onRefetchBookmark={refetchBookmark}
             />
           )}
 
@@ -116,6 +133,7 @@ const App: React.FC = () => {
               onToggleFavorite={toggleFavorite}
               onToggleImportant={toggleImportant}
               onUpdateBookmark={updateBookmark}
+              onRefetchBookmark={refetchBookmark}
             />
           )}
 
@@ -126,6 +144,7 @@ const App: React.FC = () => {
               onToggleFavorite={toggleFavorite}
               onToggleImportant={toggleImportant}
               onUpdateBookmark={updateBookmark}
+              onRefetchBookmark={refetchBookmark}
             />
           )}
 
@@ -136,6 +155,18 @@ const App: React.FC = () => {
               onToggleFavorite={toggleFavorite}
               onToggleImportant={toggleImportant}
               onUpdateBookmark={updateBookmark}
+              onRefetchBookmark={refetchBookmark}
+            />
+          )}
+
+          {currentTab === 'trash' && (
+            <RecycleBinPage
+              deletedBookmarks={deletedBookmarks}
+              loading={loading}
+              searchQuery={searchQuery}
+              onRestoreBookmark={restoreBookmark}
+              onPermanentDeleteBookmark={permanentDeleteBookmark}
+              onEmptyRecycleBin={emptyRecycleBin}
             />
           )}
 

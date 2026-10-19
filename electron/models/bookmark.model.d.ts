@@ -16,14 +16,35 @@ export interface UpdateBookmarkDTO {
     domain_id?: number | null;
     thumbnail_path?: string | null;
     preview_path?: string | null;
+    deleted_at?: string | null;
 }
 export declare class BookmarkModel {
     findById(id: number): Bookmark | null;
     findByUrl(url: string): Bookmark | null;
     create(data: CreateBookmarkDTO): Bookmark;
     update(id: number, data: UpdateBookmarkDTO): Bookmark;
+    /**
+     * Moves a bookmark to the Recycle Bin (soft delete).
+     */
     delete(id: number): void;
+    /**
+     * Restores a bookmark from the Recycle Bin.
+     */
+    restore(id: number): Bookmark | null;
+    /**
+     * Permanently deletes a bookmark from the database.
+     */
+    permanentDelete(id: number): void;
+    /**
+     * Permanently deletes all bookmarks currently in the Recycle Bin.
+     */
+    emptyTrash(): number;
+    /**
+     * Permanently deletes bookmarks in the Recycle Bin older than the specified number of days (default 15).
+     */
+    purgeExpiredTrash(days?: number): number;
     getAll(): Bookmark[];
+    getDeleted(): Bookmark[];
     search(query: string): Bookmark[];
     private mapRow;
 }

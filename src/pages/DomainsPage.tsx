@@ -11,7 +11,8 @@ interface DomainsPageProps {
   onDeleteBookmark: (id: number) => void;
   onToggleFavorite: (id: number, current: boolean) => void;
   onToggleImportant: (id: number, current: boolean) => void;
-  onUpdateBookmark: (id: number, data: Partial<Bookmark>) => void;
+  onUpdateBookmark: (id: number, data: Partial<Bookmark>) => any;
+  onRefetchBookmark?: (id: number) => Promise<{ success: boolean; data?: Bookmark; error?: string }>;
 }
 
 export const DomainsPage: React.FC<DomainsPageProps> = ({ 
@@ -19,7 +20,8 @@ export const DomainsPage: React.FC<DomainsPageProps> = ({
   onDeleteBookmark, 
   onToggleFavorite, 
   onToggleImportant, 
-  onUpdateBookmark 
+  onUpdateBookmark,
+  onRefetchBookmark
 }) => {
   const { domains, loading, refetchDomain, renameDomain, deleteDomain } = useDomains();
   const [selectedDomain, setSelectedDomain] = useState<Domain | null>(null);
@@ -112,6 +114,8 @@ export const DomainsPage: React.FC<DomainsPageProps> = ({
               onToggleFavorite={onToggleFavorite}
               onToggleImportant={onToggleImportant}
               onEdit={setEditingBookmark}
+              onUpdate={onUpdateBookmark}
+              onRefetch={onRefetchBookmark}
             />
           ))}
         </div>

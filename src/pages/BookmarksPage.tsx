@@ -11,7 +11,8 @@ interface BookmarksPageProps {
   onDeleteBookmark: (id: number) => void;
   onToggleFavorite: (id: number, current: boolean) => void;
   onToggleImportant: (id: number, current: boolean) => void;
-  onUpdateBookmark: (id: number, data: Partial<Bookmark>) => void;
+  onUpdateBookmark: (id: number, data: Partial<Bookmark>) => any;
+  onRefetchBookmark?: (id: number) => Promise<{ success: boolean; data?: Bookmark; error?: string }>;
 }
 
 export const BookmarksPage: React.FC<BookmarksPageProps> = ({ 
@@ -21,7 +22,8 @@ export const BookmarksPage: React.FC<BookmarksPageProps> = ({
   onDeleteBookmark,
   onToggleFavorite,
   onToggleImportant,
-  onUpdateBookmark
+  onUpdateBookmark,
+  onRefetchBookmark
 }) => {
   const [sortOrder, setSortOrder] = useState<'newest' | 'oldest' | 'title-asc' | 'title-desc'>('newest');
   const [editingBookmark, setEditingBookmark] = useState<Bookmark | null>(null);
@@ -30,7 +32,7 @@ export const BookmarksPage: React.FC<BookmarksPageProps> = ({
 
   React.useEffect(() => {
     setCurrentPage(1);
-  }, [type, bookmarks, sortOrder]);
+  }, [type, sortOrder]);
 
   const filteredBookmarks = bookmarks.filter(b => {
     if (type === 'favorites') return b.is_favorite;
@@ -47,6 +49,13 @@ export const BookmarksPage: React.FC<BookmarksPageProps> = ({
   });
 
   const totalPages = Math.ceil(sortedBookmarks.length / ITEMS_PER_PAGE);
+
+  React.useEffect(() => {
+    if (totalPages > 0 && currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [totalPages, currentPage]);
+
   const paginatedBookmarks = sortedBookmarks.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
   return (
@@ -97,6 +106,8 @@ export const BookmarksPage: React.FC<BookmarksPageProps> = ({
               onToggleFavorite={onToggleFavorite}
               onToggleImportant={onToggleImportant}
               onEdit={setEditingBookmark}
+              onUpdate={onUpdateBookmark}
+              onRefetch={onRefetchBookmark}
             />
           ))}
         </div>

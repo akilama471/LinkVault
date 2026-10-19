@@ -13,6 +13,7 @@ interface MainLayoutProps {
   isAdding: boolean;
   hasPassword?: boolean;
   onLock?: () => void;
+  trashCount?: number;
   children: React.ReactNode;
 }
 
@@ -27,6 +28,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
   isAdding,
   hasPassword,
   onLock,
+  trashCount,
   children
 }) => {
   return (
@@ -36,6 +38,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
         onTabChange={onTabChange} 
         hasPassword={hasPassword}
         onLock={onLock}
+        trashCount={trashCount}
       />
       
       <main className="flex-1 flex flex-col h-full overflow-hidden">

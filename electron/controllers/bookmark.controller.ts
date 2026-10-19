@@ -44,11 +44,61 @@ export function registerBookmarkController() {
     }
   });
 
+  ipcMain.handle('bookmarks:refetch', async (event, id: number) => {
+    try {
+      passwordService.checkAuth();
+      const bookmark = await bookmarkService.refetchBookmark(id);
+      return { success: true, data: bookmark };
+    } catch (error: any) {
+      return { success: false, error: error.message };
+    }
+  });
+
   ipcMain.handle('bookmarks:delete', async (event, id: number) => {
     try {
       passwordService.checkAuth();
       bookmarkService.deleteBookmark(id);
       return { success: true };
+    } catch (error: any) {
+      return { success: false, error: error.message };
+    }
+  });
+
+  ipcMain.handle('bookmarks:getDeleted', async () => {
+    try {
+      passwordService.checkAuth();
+      const bookmarks = bookmarkService.getDeletedBookmarks();
+      return { success: true, data: bookmarks };
+    } catch (error: any) {
+      return { success: false, error: error.message };
+    }
+  });
+
+  ipcMain.handle('bookmarks:restore', async (event, id: number) => {
+    try {
+      passwordService.checkAuth();
+      const bookmark = bookmarkService.restoreBookmark(id);
+      return { success: true, data: bookmark };
+    } catch (error: any) {
+      return { success: false, error: error.message };
+    }
+  });
+
+  ipcMain.handle('bookmarks:permanentDelete', async (event, id: number) => {
+    try {
+      passwordService.checkAuth();
+      bookmarkService.permanentDeleteBookmark(id);
+      return { success: true };
+    } catch (error: any) {
+      return { success: false, error: error.message };
+    }
+  });
+
+  ipcMain.handle('bookmarks:emptyTrash', async () => {
+    try {
+      passwordService.checkAuth();
+      const count = bookmarkService.emptyRecycleBin();
+      return { success: true, count };
     } catch (error: any) {
       return { success: false, error: error.message };
     }

@@ -3,12 +3,14 @@ import { Bookmark } from '../types/models';
 
 export function useBookmarks(isAuthenticated = true) {
   const [bookmarks, setBookmarks] = useState<Bookmark[]>([]);
+  const [deletedBookmarks, setDeletedBookmarks] = useState<Bookmark[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const fetchBookmarks = useCallback(async (query?: string, silent = false) => {
     if (!isAuthenticated) {
       setBookmarks([]);
+      setDeletedBookmarks([]);
       setLoading(false);
       return;
     }
@@ -30,6 +32,12 @@ export function useBookmarks(isAuthenticated = true) {
         setBookmarks(result.data);
       } else {
         setError(result.error);
+      }
+
+      // @ts-ignore
+      const deletedResult = await window.electronAPI.bookmarks.getDeleted();
+      if (deletedResult && deletedResult.success) {
+        setDeletedBookmarks(deletedResult.data);
       }
     } catch (err: any) {
       setError(err.message);
@@ -60,9 +68,59 @@ export function useBookmarks(isAuthenticated = true) {
       const result = await window.electronAPI.bookmarks.delete(id);
       if (result.success) {
         setBookmarks((prev) => prev.filter(b => b.id !== id));
+        await fetchBookmarks(undefined, true);
+        return { success: true };
       }
-    } catch (err) {
+      return { success: false, error: result.error };
+    } catch (err: any) {
       console.error(err);
+      return { success: false, error: err.message };
+    }
+  };
+
+  const restoreBookmark = async (id: number) => {
+    try {
+      // @ts-ignore
+      const result = await window.electronAPI.bookmarks.restore(id);
+      if (result.success) {
+        setDeletedBookmarks((prev) => prev.filter(b => b.id !== id));
+        await fetchBookmarks(undefined, true);
+        return { success: true, data: result.data };
+      }
+      return { success: false, error: result.error };
+    } catch (err: any) {
+      console.error(err);
+      return { success: false, error: err.message };
+    }
+  };
+
+  const permanentDeleteBookmark = async (id: number) => {
+    try {
+      // @ts-ignore
+      const result = await window.electronAPI.bookmarks.permanentDelete(id);
+      if (result.success) {
+        setDeletedBookmarks((prev) => prev.filter(b => b.id !== id));
+        return { success: true };
+      }
+      return { success: false, error: result.error };
+    } catch (err: any) {
+      console.error(err);
+      return { success: false, error: err.message };
+    }
+  };
+
+  const emptyRecycleBin = async () => {
+    try {
+      // @ts-ignore
+      const result = await window.electronAPI.bookmarks.emptyTrash();
+      if (result.success) {
+        setDeletedBookmarks([]);
+        return { success: true, count: result.count };
+      }
+      return { success: false, error: result.error };
+    } catch (err: any) {
+      console.error(err);
+      return { success: false, error: err.message };
     }
   };
 
@@ -71,8 +129,25 @@ export function useBookmarks(isAuthenticated = true) {
       // @ts-ignore
       const result = await window.electronAPI.bookmarks.update(id, data);
       if (result.success) {
-        setBookmarks((prev) => prev.map(b => b.id === id ? { ...b, ...data } : b));
-        return { success: true };
+        setBookmarks((prev) => prev.map(b => b.id === id ? (result.data || { ...b, ...data }) : b));
+        return { success: true, data: result.data };
+      }
+      return { success: false, error: result.error };
+    } catch (err: any) {
+      console.error(err);
+      return { success: false, error: err.message };
+    }
+  };
+
+  const refetchBookmark = async (id: number) => {
+    try {
+      // @ts-ignore
+      const result = await window.electronAPI.bookmarks.refetch(id);
+      if (result.success) {
+        if (result.data) {
+          setBookmarks((prev) => prev.map(b => b.id === id ? result.data : b));
+        }
+        return { success: true, data: result.data };
       }
       return { success: false, error: result.error };
     } catch (err: any) {
@@ -87,6 +162,7 @@ export function useBookmarks(isAuthenticated = true) {
   useEffect(() => {
     if (!isAuthenticated) {
       setBookmarks([]);
+      setDeletedBookmarks([]);
       setLoading(false);
       return;
     }
@@ -105,11 +181,16 @@ export function useBookmarks(isAuthenticated = true) {
 
   return {
     bookmarks,
+    deletedBookmarks,
     loading,
     error,
     addBookmark,
     deleteBookmark,
+    restoreBookmark,
+    permanentDeleteBookmark,
+    emptyRecycleBin,
     updateBookmark,
+    refetchBookmark,
     toggleFavorite,
     toggleImportant,
     refresh: fetchBookmarks

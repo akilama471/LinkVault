@@ -154,6 +154,13 @@ export class DbManager {
         up: `
           ALTER TABLE domains ADD COLUMN display_name TEXT;
         `,
+      },
+      {
+        version: 4,
+        up: `
+          ALTER TABLE bookmarks ADD COLUMN deleted_at DATETIME DEFAULT NULL;
+          CREATE INDEX idx_bookmarks_deleted_at ON bookmarks(deleted_at);
+        `,
       }
     ];
 

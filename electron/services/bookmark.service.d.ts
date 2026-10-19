@@ -5,9 +5,33 @@ export declare class BookmarkService {
      * Adds a new bookmark by scraping its URL for metadata and downloading assets.
      */
     addBookmark(url: string): Promise<Bookmark>;
+    /**
+     * Refetches metadata and preview images for an existing bookmark from the internet.
+     */
+    refetchBookmark(id: number): Promise<Bookmark>;
     getAllBookmarks(): Bookmark[];
+    getDeletedBookmarks(): Bookmark[];
     searchBookmarks(query: string): Bookmark[];
     updateBookmark(id: number, data: UpdateBookmarkDTO): Bookmark;
+    /**
+     * Soft-deletes a bookmark by moving it to the Recycle Bin.
+     */
     deleteBookmark(id: number): void;
+    /**
+     * Restores a bookmark from the Recycle Bin.
+     */
+    restoreBookmark(id: number): Bookmark | null;
+    /**
+     * Permanently deletes a single bookmark from the database.
+     */
+    permanentDeleteBookmark(id: number): void;
+    /**
+     * Permanently deletes all bookmarks in the Recycle Bin.
+     */
+    emptyRecycleBin(): number;
+    /**
+     * Permanently deletes bookmarks that have been in the Recycle Bin for 15 days or more.
+     */
+    purgeExpiredBookmarks(days?: number): number;
 }
 export declare const bookmarkService: BookmarkService;

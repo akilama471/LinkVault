@@ -11,7 +11,8 @@ interface CollectionsPageProps {
   onDeleteBookmark: (id: number) => void;
   onToggleFavorite: (id: number, current: boolean) => void;
   onToggleImportant: (id: number, current: boolean) => void;
-  onUpdateBookmark: (id: number, data: Partial<Bookmark>) => void;
+  onUpdateBookmark: (id: number, data: Partial<Bookmark>) => any;
+  onRefetchBookmark?: (id: number) => Promise<{ success: boolean; data?: Bookmark; error?: string }>;
 }
 
 export const CollectionsPage: React.FC<CollectionsPageProps> = ({ 
@@ -19,7 +20,8 @@ export const CollectionsPage: React.FC<CollectionsPageProps> = ({
   onDeleteBookmark, 
   onToggleFavorite, 
   onToggleImportant, 
-  onUpdateBookmark 
+  onUpdateBookmark,
+  onRefetchBookmark
 }) => {
   const { collections, loading, createCollection, renameCollection, deleteCollection, getBookmarkIds } = useCollections();
   const [selectedCollection, setSelectedCollection] = useState<Collection | null>(null);
@@ -111,6 +113,8 @@ export const CollectionsPage: React.FC<CollectionsPageProps> = ({
               onToggleFavorite={onToggleFavorite}
               onToggleImportant={onToggleImportant}
               onEdit={setEditingBookmark}
+              onUpdate={onUpdateBookmark}
+              onRefetch={onRefetchBookmark}
             />
           ))}
         </div>

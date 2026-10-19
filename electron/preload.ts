@@ -6,9 +6,14 @@ export const electronAPI = {
   bookmarks: {
     add: (url: string) => ipcRenderer.invoke('bookmarks:add', url),
     getAll: () => ipcRenderer.invoke('bookmarks:getAll'),
+    getDeleted: () => ipcRenderer.invoke('bookmarks:getDeleted'),
     search: (query: string) => ipcRenderer.invoke('bookmarks:search', query),
     update: (id: number, data: any) => ipcRenderer.invoke('bookmarks:update', id, data),
-    delete: (id: number) => ipcRenderer.invoke('bookmarks:delete', id)
+    refetch: (id: number) => ipcRenderer.invoke('bookmarks:refetch', id),
+    delete: (id: number) => ipcRenderer.invoke('bookmarks:delete', id),
+    restore: (id: number) => ipcRenderer.invoke('bookmarks:restore', id),
+    permanentDelete: (id: number) => ipcRenderer.invoke('bookmarks:permanentDelete', id),
+    emptyTrash: () => ipcRenderer.invoke('bookmarks:emptyTrash')
   },
   domains: {
     getAll: () => ipcRenderer.invoke('domains:getAll'),

@@ -13,6 +13,7 @@ import { registerAuthController } from './controllers/auth.controller';
 import { registerBackupController } from './controllers/backup.controller';
 import { registerBrowserLauncherController } from './controllers/browser-launcher.controller';
 import { browserLauncherService } from './services/browser-launcher.service';
+import { bookmarkService } from './services/bookmark.service';
 import { dbManager } from './database/db';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -129,6 +130,14 @@ app.whenReady().then(() => {
   registerBrowserLauncherController();
   
   // Start background jobs
+  bookmarkService.purgeExpiredBookmarks();
+  setInterval(() => {
+    try {
+      bookmarkService.purgeExpiredBookmarks();
+    } catch (e) {
+      console.error('Failed to purge expired Recycle Bin bookmarks:', e);
+    }
+  }, 60 * 60 * 1000);
   enrichmentService.startEnrichmentJob();
   
   createWindow();

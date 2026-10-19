@@ -3,9 +3,14 @@ export declare const electronAPI: {
     bookmarks: {
         add: (url: string) => Promise<any>;
         getAll: () => Promise<any>;
+        getDeleted: () => Promise<any>;
         search: (query: string) => Promise<any>;
         update: (id: number, data: any) => Promise<any>;
+        refetch: (id: number) => Promise<any>;
         delete: (id: number) => Promise<any>;
+        restore: (id: number) => Promise<any>;
+        permanentDelete: (id: number) => Promise<any>;
+        emptyTrash: () => Promise<any>;
     };
     domains: {
         getAll: () => Promise<any>;
