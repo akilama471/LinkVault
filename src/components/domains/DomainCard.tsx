@@ -93,6 +93,13 @@ export const DomainCard: React.FC<DomainCardProps> = ({
     ? `asset://${domain.favicon_path}`
     : (!imgError ? `https://www.google.com/s2/favicons?domain=${domain.domain}&sz=64` : null);
 
+  const handleContextMenu = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    window.dispatchEvent(new CustomEvent('close-context-menus'));
+    onContextMenu(e);
+  };
+
   return (
     <div
       onClick={() => {
@@ -100,7 +107,7 @@ export const DomainCard: React.FC<DomainCardProps> = ({
           onSelect();
         }
       }}
-      onContextMenu={onContextMenu}
+      onContextMenu={handleContextMenu}
       className={clsx(
         "relative flex flex-col items-center justify-between p-5 bg-white rounded-2xl shadow-xs border transition-all duration-200 group select-none cursor-pointer",
         isRenaming
@@ -118,7 +125,9 @@ export const DomainCard: React.FC<DomainCardProps> = ({
         <button
           type="button"
           onClick={(e) => {
+            e.preventDefault();
             e.stopPropagation();
+            window.dispatchEvent(new CustomEvent('close-context-menus'));
             onOpenMenu(e);
           }}
           className="p-1 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-opacity opacity-0 group-hover:opacity-100 focus:opacity-100 cursor-pointer"

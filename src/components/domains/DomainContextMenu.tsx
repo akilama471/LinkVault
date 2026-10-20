@@ -76,14 +76,22 @@ export const DomainContextMenu: React.FC<DomainContextMenuProps> = ({
       }
     };
 
+    const handleCloseAll = () => {
+      onClose();
+    };
+
     document.addEventListener('mousedown', handlePointerDown);
     document.addEventListener('keydown', handleKeyDown);
     document.addEventListener('contextmenu', handleContextMenu);
+    window.addEventListener('scroll', handleCloseAll, true);
+    window.addEventListener('close-context-menus', handleCloseAll);
 
     return () => {
       document.removeEventListener('mousedown', handlePointerDown);
       document.removeEventListener('keydown', handleKeyDown);
       document.removeEventListener('contextmenu', handleContextMenu);
+      window.removeEventListener('scroll', handleCloseAll, true);
+      window.removeEventListener('close-context-menus', handleCloseAll);
     };
   }, [onClose]);
 
@@ -95,6 +103,10 @@ export const DomainContextMenu: React.FC<DomainContextMenuProps> = ({
       style={{ top: `${position.top}px`, left: `${position.left}px` }}
       className="fixed z-[9999] min-w-[210px] bg-white/95 backdrop-blur-md rounded-xl border border-gray-200/90 shadow-2xl p-1.5 text-sm select-none animate-in fade-in zoom-in-95 duration-100 text-gray-800"
       onClick={(e) => e.stopPropagation()}
+      onContextMenu={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+      }}
     >
       {/* Header with Domain Info */}
       <div className="px-2.5 py-1.5 border-b border-gray-100 mb-1">

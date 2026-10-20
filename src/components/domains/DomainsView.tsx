@@ -133,6 +133,8 @@ export const DomainsView: React.FC<DomainsViewProps> = ({
               onCancelRename={() => setRenamingId(null)}
               onContextMenu={(e) => {
                 e.preventDefault();
+                e.stopPropagation();
+                window.dispatchEvent(new CustomEvent('close-context-menus'));
                 setContextMenu({
                   domain,
                   x: e.clientX,
