@@ -1,17 +1,19 @@
 import { dbManager } from '../database/db';
 import { Collection } from '../../src/types/models';
+import { settingsService } from '../services/settings.service';
 
 export class CollectionModel {
   public getAll(): Collection[] {
+    const showHidden = settingsService.getShowHiddenBookmarks() ? 1 : 0;
     return dbManager.getDb().prepare(`
       SELECT c.*,
         (SELECT COUNT(*) FROM bookmark_collections bc
          JOIN bookmarks b ON b.id = bc.bookmark_id
-         WHERE bc.collection_id = c.id AND b.deleted_at IS NULL) as bookmark_count
+         WHERE bc.collection_id = c.id AND b.deleted_at IS NULL AND (b.hide_mode IS NULL OR b.hide_mode != 2 OR ? = 1)) as bookmark_count
       FROM collections c
       WHERE c.deleted_at IS NULL
       ORDER BY c.name COLLATE NOCASE ASC
-    `).all() as Collection[];
+    `).all(showHidden) as Collection[];
   }
 
   public getDeleted(): Collection[] {
@@ -31,14 +33,15 @@ export class CollectionModel {
   }
 
   public findById(id: number): Collection | null {
+    const showHidden = settingsService.getShowHiddenBookmarks() ? 1 : 0;
     return dbManager.getDb().prepare(`
       SELECT c.*,
         (SELECT COUNT(*) FROM bookmark_collections bc
          JOIN bookmarks b ON b.id = bc.bookmark_id
-         WHERE bc.collection_id = c.id AND b.deleted_at IS NULL) as bookmark_count
+         WHERE bc.collection_id = c.id AND b.deleted_at IS NULL AND (b.hide_mode IS NULL OR b.hide_mode != 2 OR ? = 1)) as bookmark_count
       FROM collections c
       WHERE c.id = ?
-    `).get(id) as Collection | null;
+    `).get(showHidden, id) as Collection | null;
   }
 
   public create(name: string, description: string | null = null): Collection {

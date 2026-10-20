@@ -70,8 +70,13 @@ export declare const electronAPI: {
         browseExecutable: (browser: string) => Promise<any>;
         openUrl: (url: string, browserName?: string) => Promise<any>;
     };
+    settings: {
+        getShowHiddenBookmarks: () => Promise<any>;
+        setShowHiddenBookmarks: (show: boolean) => Promise<any>;
+    };
     events: {
         onBookmarksUpdated: (callback: () => void) => () => Electron.IpcRenderer;
+        onShowHiddenUpdated: (callback: (show: boolean) => void) => () => Electron.IpcRenderer;
         onDomainsUpdated: (callback: () => void) => () => Electron.IpcRenderer;
         onCollectionsUpdated: (callback: () => void) => () => Electron.IpcRenderer;
         onJobsUpdated: (callback: () => void) => () => Electron.IpcRenderer;

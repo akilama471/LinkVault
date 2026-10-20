@@ -17,6 +17,7 @@ export const BookmarkDetailsModal: React.FC<BookmarkDetailsModalProps> = ({ book
   const [url, setUrl] = useState(bookmark.url);
   const [description, setDescription] = useState(bookmark.description || '');
   const [notes, setNotes] = useState(bookmark.notes || '');
+  const [hideMode, setHideMode] = useState<number>(bookmark.hide_mode ?? 0);
   const [saving, setSaving] = useState(false);
   
   const { bookmarkTags, availableTags, addTag, removeTag } = useBookmarkTags(bookmark.id);
@@ -25,7 +26,7 @@ export const BookmarkDetailsModal: React.FC<BookmarkDetailsModalProps> = ({ book
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
-    await onSave(bookmark.id, { title, url, description, notes });
+    await onSave(bookmark.id, { title, url, description, notes, hide_mode: hideMode });
     
     // Save tags and collections
     try {
@@ -99,6 +100,56 @@ export const BookmarkDetailsModal: React.FC<BookmarkDetailsModalProps> = ({ book
               onAdd={addCollection}
               onRemove={removeCollection}
             />
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Visibility</label>
+              <div className="space-y-2 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                <label className="flex items-start gap-2.5 text-sm text-gray-700 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="hide_mode"
+                    value={0}
+                    checked={hideMode === 0}
+                    onChange={() => setHideMode(0)}
+                    className="mt-0.5 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                  />
+                  <div>
+                    <span className="font-medium text-gray-900">Visible everywhere (Default)</span>
+                    <p className="text-xs text-gray-500">Visible in All Bookmarks, Favorites, Domains, Collections, and Tags.</p>
+                  </div>
+                </label>
+
+                <label className="flex items-start gap-2.5 text-sm text-gray-700 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="hide_mode"
+                    value={1}
+                    checked={hideMode === 1}
+                    onChange={() => setHideMode(1)}
+                    className="mt-0.5 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                  />
+                  <div>
+                    <span className="font-medium text-gray-900">Hide from "All Bookmarks" (Method 1)</span>
+                    <p className="text-xs text-gray-500">Hidden only from "All Bookmarks", but remains visible in Favorites, Domains, Collections, and Tags.</p>
+                  </div>
+                </label>
+
+                <label className="flex items-start gap-2.5 text-sm text-gray-700 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="hide_mode"
+                    value={2}
+                    checked={hideMode === 2}
+                    onChange={() => setHideMode(2)}
+                    className="mt-0.5 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                  />
+                  <div>
+                    <span className="font-medium text-gray-900">Hide from all locations (Method 2)</span>
+                    <p className="text-xs text-gray-500">Hidden from all pages including Favorites, Domains, Collections, and Tags unless "Show Hidden Bookmarks" is enabled.</p>
+                  </div>
+                </label>
+              </div>
+            </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Personal Notes</label>

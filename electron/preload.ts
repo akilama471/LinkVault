@@ -70,11 +70,20 @@ export const electronAPI = {
     browseExecutable: (browser: string) => ipcRenderer.invoke('settings:browseBrowserExecutable', browser),
     openUrl: (url: string, browserName?: string) => ipcRenderer.invoke('browser:openUrl', url, browserName)
   },
+  settings: {
+    getShowHiddenBookmarks: () => ipcRenderer.invoke('settings:getShowHiddenBookmarks'),
+    setShowHiddenBookmarks: (show: boolean) => ipcRenderer.invoke('settings:setShowHiddenBookmarks', show)
+  },
   events: {
     onBookmarksUpdated: (callback: () => void) => {
       const listener = () => callback();
       ipcRenderer.on('bookmarks:updated', listener);
       return () => ipcRenderer.removeListener('bookmarks:updated', listener);
+    },
+    onShowHiddenUpdated: (callback: (show: boolean) => void) => {
+      const listener = (_e: any, show: boolean) => callback(show);
+      ipcRenderer.on('settings:show-hidden-updated', listener);
+      return () => ipcRenderer.removeListener('settings:show-hidden-updated', listener);
     },
     onDomainsUpdated: (callback: () => void) => {
       const listener = () => callback();

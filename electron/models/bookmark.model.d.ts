@@ -17,6 +17,7 @@ export interface UpdateBookmarkDTO {
     thumbnail_path?: string | null;
     preview_path?: string | null;
     deleted_at?: string | null;
+    hide_mode?: number;
 }
 export declare class BookmarkModel {
     findById(id: number): Bookmark | null;

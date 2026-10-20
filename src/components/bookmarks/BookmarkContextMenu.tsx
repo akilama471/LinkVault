@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Bookmark } from '../../types/models';
-import { RotateCw, Edit3, Trash2 } from 'lucide-react';
+import { RotateCw, Edit3, Trash2, Eye, EyeOff, Check } from 'lucide-react';
 import clsx from 'clsx';
 
 interface BookmarkContextMenuProps {
@@ -12,6 +12,7 @@ interface BookmarkContextMenuProps {
   onRefetch: () => void;
   onRename: () => void;
   onDelete: () => void;
+  onUpdateHideMode?: (mode: number) => void;
 }
 
 export const BookmarkContextMenu: React.FC<BookmarkContextMenuProps> = ({
@@ -23,6 +24,7 @@ export const BookmarkContextMenu: React.FC<BookmarkContextMenuProps> = ({
   onRefetch,
   onRename,
   onDelete,
+  onUpdateHideMode,
 }) => {
   const menuRef = useRef<HTMLDivElement>(null);
   const [position, setPosition] = useState({ top: y, left: x });
@@ -155,6 +157,77 @@ export const BookmarkContextMenu: React.FC<BookmarkContextMenuProps> = ({
           <span className="text-[10px] text-gray-400 mt-0.5">Change display name</span>
         </div>
       </button>
+
+      {onUpdateHideMode && (
+        <>
+          <div className="my-1 border-t border-gray-100" />
+          
+          {bookmark.hide_mode && bookmark.hide_mode > 0 ? (
+            <button
+              type="button"
+              onClick={() => {
+                onUpdateHideMode(0);
+                onClose();
+              }}
+              className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-left text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition-colors cursor-pointer"
+            >
+              <Eye className="w-4 h-4 text-blue-600 shrink-0" />
+              <div className="flex flex-col">
+                <span className="font-medium text-xs leading-none">Unhide Bookmark</span>
+                <span className="text-[10px] text-gray-400 mt-0.5">Make visible everywhere</span>
+              </div>
+            </button>
+          ) : null}
+
+          {/* Method 1: Hide from All Bookmarks */}
+          <button
+            type="button"
+            onClick={() => {
+              onUpdateHideMode(bookmark.hide_mode === 1 ? 0 : 1);
+              onClose();
+            }}
+            className={clsx(
+              "w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-left transition-colors cursor-pointer",
+              bookmark.hide_mode === 1
+                ? "bg-amber-50 text-amber-900 hover:bg-amber-100"
+                : "text-gray-700 hover:bg-blue-50 hover:text-blue-700"
+            )}
+          >
+            <EyeOff className={clsx("w-4 h-4 shrink-0", bookmark.hide_mode === 1 ? "text-amber-600" : "text-gray-500")} />
+            <div className="flex flex-col flex-1 min-w-0">
+              <div className="flex items-center justify-between">
+                <span className="font-medium text-xs leading-none">Hide from All Bookmarks</span>
+                {bookmark.hide_mode === 1 && <Check className="w-3.5 h-3.5 text-amber-600 shrink-0" />}
+              </div>
+              <span className="text-[10px] text-gray-400 mt-0.5">Method 1 (keeps in domains/tags)</span>
+            </div>
+          </button>
+
+          {/* Method 2: Hide from All Locations */}
+          <button
+            type="button"
+            onClick={() => {
+              onUpdateHideMode(bookmark.hide_mode === 2 ? 0 : 2);
+              onClose();
+            }}
+            className={clsx(
+              "w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-left transition-colors cursor-pointer",
+              bookmark.hide_mode === 2
+                ? "bg-purple-50 text-purple-900 hover:bg-purple-100"
+                : "text-gray-700 hover:bg-blue-50 hover:text-blue-700"
+            )}
+          >
+            <EyeOff className={clsx("w-4 h-4 shrink-0", bookmark.hide_mode === 2 ? "text-purple-600" : "text-gray-500")} />
+            <div className="flex flex-col flex-1 min-w-0">
+              <div className="flex items-center justify-between">
+                <span className="font-medium text-xs leading-none">Hide from All Locations</span>
+                {bookmark.hide_mode === 2 && <Check className="w-3.5 h-3.5 text-purple-600 shrink-0" />}
+              </div>
+              <span className="text-[10px] text-gray-400 mt-0.5">Method 2 (hides from all pages)</span>
+            </div>
+          </button>
+        </>
+      )}
 
       <div className="my-1 border-t border-gray-100" />
 

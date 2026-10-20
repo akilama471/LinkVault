@@ -9,6 +9,7 @@ export interface Bookmark {
     is_favorite: boolean;
     is_important: boolean;
     notes: string | null;
+    hide_mode?: number;
     deleted_at?: string | null;
     created_at: string;
     updated_at: string;

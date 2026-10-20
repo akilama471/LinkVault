@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Bookmark as BookmarkModel } from '../../types/models';
-import { ExternalLink, Star, Trash2, Flag, Edit2, RotateCw, Globe, Loader2 } from 'lucide-react';
+import { ExternalLink, Star, Trash2, Flag, Edit2, RotateCw, Globe, Loader2, EyeOff } from 'lucide-react';
 import clsx from 'clsx';
 import { useBookmarkOpener } from '../../context/BookmarkOpenerContext';
 import { useToast } from '../../context/ToastContext';
@@ -240,6 +240,23 @@ export const BookmarkCard: React.FC<BookmarkCardProps> = ({
         </div>
 
         <div className="p-4 flex flex-col flex-1">
+          {bookmark.hide_mode === 1 && (
+            <span
+              title="Hidden only from All Bookmarks (Method 1)"
+              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-50 text-amber-700 border border-amber-200 mb-1.5 w-fit"
+            >
+              <EyeOff className="w-2.5 h-2.5" /> Hidden (All Bookmarks)
+            </span>
+          )}
+          {bookmark.hide_mode === 2 && (
+            <span
+              title="Hidden from all locations (Method 2)"
+              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-purple-50 text-purple-700 border border-purple-200 mb-1.5 w-fit"
+            >
+              <EyeOff className="w-2.5 h-2.5" /> Hidden
+            </span>
+          )}
+
           {isRenaming ? (
             <div className="mb-1.5" onClick={(e) => e.stopPropagation()}>
               <div className="relative">
@@ -325,6 +342,7 @@ export const BookmarkCard: React.FC<BookmarkCardProps> = ({
           onRefetch={handleRefetch}
           onRename={handleStartRename}
           onDelete={() => setShowDeleteModal(true)}
+          onUpdateHideMode={(mode) => onUpdate && onUpdate(bookmark.id, { hide_mode: mode })}
         />
       )}
 

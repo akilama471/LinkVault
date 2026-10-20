@@ -169,6 +169,13 @@ export class DbManager {
           ALTER TABLE collections ADD COLUMN deleted_with_bookmarks INTEGER DEFAULT 0;
           CREATE INDEX idx_collections_deleted_at ON collections(deleted_at);
         `,
+      },
+      {
+        version: 6,
+        up: `
+          ALTER TABLE bookmarks ADD COLUMN hide_mode INTEGER DEFAULT 0;
+          CREATE INDEX idx_bookmarks_hide_mode ON bookmarks(hide_mode);
+        `,
       }
     ];
 

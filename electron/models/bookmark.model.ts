@@ -20,6 +20,7 @@ export interface UpdateBookmarkDTO {
   thumbnail_path?: string | null;
   preview_path?: string | null;
   deleted_at?: string | null;
+  hide_mode?: number;
 }
 
 export class BookmarkModel {
@@ -72,6 +73,7 @@ export class BookmarkModel {
     if (data.thumbnail_path !== undefined) { updates.push('thumbnail_path = ?'); values.push(data.thumbnail_path); }
     if (data.preview_path !== undefined) { updates.push('preview_path = ?'); values.push(data.preview_path); }
     if (data.deleted_at !== undefined) { updates.push('deleted_at = ?'); values.push(data.deleted_at); }
+    if (data.hide_mode !== undefined) { updates.push('hide_mode = ?'); values.push(data.hide_mode); }
     
     if (updates.length === 0) return this.findById(id)!;
 
@@ -159,6 +161,7 @@ export class BookmarkModel {
       ...row,
       is_favorite: Boolean(row.is_favorite),
       is_important: Boolean(row.is_important),
+      hide_mode: row.hide_mode ?? 0,
     };
   }
 }

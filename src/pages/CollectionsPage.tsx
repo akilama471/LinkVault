@@ -3,11 +3,13 @@ import { useCollections } from '../hooks/useCollections';
 import { CollectionsView } from '../components/collections/CollectionsView';
 import { BookmarkCard } from '../components/bookmarks/BookmarkCard';
 import { BookmarkDetailsModal } from '../components/bookmarks/BookmarkDetailsModal';
+import { ListViewMenu } from '../components/common/ListViewMenu';
 import { Bookmark, Collection } from '../types/models';
 import { Search, Plus } from 'lucide-react';
 
 interface CollectionsPageProps {
   bookmarks: Bookmark[];
+  showHiddenBookmarks?: boolean;
   onDeleteBookmark: (id: number) => void;
   onToggleFavorite: (id: number, current: boolean) => void;
   onToggleImportant: (id: number, current: boolean) => void;
@@ -17,6 +19,7 @@ interface CollectionsPageProps {
 
 export const CollectionsPage: React.FC<CollectionsPageProps> = ({
   bookmarks,
+  showHiddenBookmarks = false,
   onDeleteBookmark,
   onToggleFavorite,
   onToggleImportant,
@@ -36,8 +39,10 @@ export const CollectionsPage: React.FC<CollectionsPageProps> = ({
   const [sortOrder, setSortOrder] = useState<'newest' | 'oldest' | 'title-asc' | 'title-desc'>('newest');
   const [editingBookmark, setEditingBookmark] = useState<Bookmark | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [showHiddenInView, setShowHiddenInView] = useState(false);
 
   const handleSelectCollection = async (col: Collection) => {
+    setShowHiddenInView(false);
     const ids = await getBookmarkIds(col.id);
     setFilteredColBookmarkIds(ids);
     setSelectedCollection(col);
@@ -77,7 +82,15 @@ export const CollectionsPage: React.FC<CollectionsPageProps> = ({
     );
   }
 
-  const colBookmarks = bookmarks.filter((b) => filteredColBookmarkIds.includes(b.id));
+  const isShowingHidden = showHiddenBookmarks || showHiddenInView;
+  const colBookmarks = bookmarks.filter((b) => {
+    if (!filteredColBookmarkIds.includes(b.id)) return false;
+    // Method 1 bookmarks remain visible in Collections.
+    // Method 2 bookmarks are visible only when isShowingHidden is true.
+    if (b.hide_mode === 2 && !isShowingHidden) return false;
+    return true;
+  });
+
   const sortedBookmarks = [...colBookmarks].sort((a, b) => {
     if (sortOrder === 'newest') return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
     if (sortOrder === 'oldest') return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
@@ -94,7 +107,10 @@ export const CollectionsPage: React.FC<CollectionsPageProps> = ({
       <div className="mb-6 flex items-center justify-between">
         <div className="flex items-center gap-4">
           <button
-            onClick={() => setSelectedCollection(null)}
+            onClick={() => {
+              setSelectedCollection(null);
+              setShowHiddenInView(false);
+            }}
             className="flex items-center gap-2 text-blue-600 hover:text-blue-800 font-medium bg-blue-50 px-3 py-1.5 rounded-lg transition-colors cursor-pointer"
           >
             ← Back to Collections
@@ -106,7 +122,7 @@ export const CollectionsPage: React.FC<CollectionsPageProps> = ({
             </p>
           </div>
         </div>
-        <div>
+        <div className="flex items-center gap-3">
           <select
             value={sortOrder}
             onChange={(e) => setSortOrder(e.target.value as any)}
@@ -117,6 +133,11 @@ export const CollectionsPage: React.FC<CollectionsPageProps> = ({
             <option value="title-asc">Title (A-Z)</option>
             <option value="title-desc">Title (Z-A)</option>
           </select>
+          <ListViewMenu
+            showHidden={isShowingHidden}
+            onToggleShowHidden={() => setShowHiddenInView(prev => !prev)}
+            disabledTooltip={showHiddenBookmarks ? "Hidden bookmarks enabled in Settings" : undefined}
+          />
         </div>
       </div>
 

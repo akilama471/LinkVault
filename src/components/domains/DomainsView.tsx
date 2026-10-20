@@ -10,6 +10,7 @@ interface DomainsViewProps {
   domains: Domain[];
   bookmarks: Bookmark[];
   loading: boolean;
+  showHiddenBookmarks?: boolean;
   onSelectDomain: (domain: Domain) => void;
   onRefetchDomain: (id: number) => Promise<{ success: boolean; data?: Domain; error?: string }>;
   onRenameDomain: (id: number, newName: string) => Promise<{ success: boolean; data?: Domain; error?: string }>;
@@ -20,6 +21,7 @@ export const DomainsView: React.FC<DomainsViewProps> = ({
   domains,
   bookmarks,
   loading,
+  showHiddenBookmarks = false,
   onSelectDomain,
   onRefetchDomain,
   onRenameDomain,
@@ -41,7 +43,7 @@ export const DomainsView: React.FC<DomainsViewProps> = ({
 
   // Helper to count bookmarks for a given domain
   const getBookmarkCount = (domainId: number) => {
-    return bookmarks.filter(b => b.domain_id === domainId).length;
+    return bookmarks.filter(b => b.domain_id === domainId && (showHiddenBookmarks || b.hide_mode !== 2)).length;
   };
 
   const handleRefetch = async (domain: Domain) => {

@@ -8,6 +8,7 @@ interface BookmarksPageProps {
   type: 'all' | 'favorites' | 'important';
   bookmarks: Bookmark[];
   loading: boolean;
+  showHiddenBookmarks?: boolean;
   onDeleteBookmark: (id: number) => void;
   onToggleFavorite: (id: number, current: boolean) => void;
   onToggleImportant: (id: number, current: boolean) => void;
@@ -19,6 +20,7 @@ export const BookmarksPage: React.FC<BookmarksPageProps> = ({
   type, 
   bookmarks, 
   loading,
+  showHiddenBookmarks = false,
   onDeleteBookmark,
   onToggleFavorite,
   onToggleImportant,
@@ -32,9 +34,18 @@ export const BookmarksPage: React.FC<BookmarksPageProps> = ({
 
   React.useEffect(() => {
     setCurrentPage(1);
-  }, [type, sortOrder]);
+  }, [type, sortOrder, showHiddenBookmarks]);
 
   const filteredBookmarks = bookmarks.filter(b => {
+    // Method 1: Hidden ONLY from "All Bookmarks"
+    if (type === 'all' && b.hide_mode === 1) {
+      return false;
+    }
+    // Method 2: Hidden from all pages unless "Show Hidden Bookmarks" is enabled
+    if (b.hide_mode === 2 && !showHiddenBookmarks) {
+      return false;
+    }
+
     if (type === 'favorites') return b.is_favorite;
     if (type === 'important') return b.is_important;
     return true;

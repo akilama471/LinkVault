@@ -1,5 +1,6 @@
 import React from 'react';
 import { SecuritySettings } from './SecuritySettings';
+import { PrivacySettings } from './PrivacySettings';
 import { BrowserSettings } from './BrowserSettings';
 import { BrowserImportSettings } from './BrowserImportSettings';
 import { BackupSettings } from './BackupSettings';
@@ -7,15 +8,19 @@ import { DangerZoneSettings } from './DangerZoneSettings';
 
 interface SettingsViewProps {
   hasPassword: boolean;
+  showHiddenBookmarks: boolean;
   onSetPassword: (password: string) => Promise<boolean>;
   onRemovePassword?: () => Promise<boolean>;
+  onToggleShowHiddenBookmarks: (show: boolean) => void;
   onRefreshAll: () => void;
 }
 
 export const SettingsView: React.FC<SettingsViewProps> = ({ 
   hasPassword, 
+  showHiddenBookmarks,
   onSetPassword, 
   onRemovePassword, 
+  onToggleShowHiddenBookmarks,
   onRefreshAll 
 }) => {
   return (
@@ -24,6 +29,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         hasPassword={hasPassword} 
         onSetPassword={onSetPassword} 
         onRemovePassword={onRemovePassword}
+      />
+      <PrivacySettings
+        showHiddenBookmarks={showHiddenBookmarks}
+        onToggleShowHiddenBookmarks={onToggleShowHiddenBookmarks}
       />
       <BrowserSettings />
       <BrowserImportSettings onRefreshAll={onRefreshAll} />

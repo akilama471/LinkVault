@@ -19,6 +19,7 @@ const App: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [newUrl, setNewUrl] = useState('');
   const [isAdding, setIsAdding] = useState(false);
+  const [showHiddenBookmarks, setShowHiddenBookmarks] = useState(false);
   const { warning, error, success } = useToast();
   const { hasPassword, isAuthenticated, loading: authLoading, verifyPassword, setPassword, removePassword, lock } = useAuth();
   const {
@@ -63,6 +64,35 @@ const App: React.FC = () => {
     refreshCollections();
     // Soft reload by resetting state if needed
     window.location.reload(); // Simple full reload as fallback for wiping data across pages
+  };
+
+  React.useEffect(() => {
+    if (!isAuthenticated) return;
+    // @ts-ignore
+    window.electronAPI?.settings?.getShowHiddenBookmarks?.().then((res: any) => {
+      if (res && res.success) {
+        setShowHiddenBookmarks(Boolean(res.data));
+      }
+    });
+
+    // @ts-ignore
+    const unsubscribe = window.electronAPI?.events?.onShowHiddenUpdated?.((show: boolean) => {
+      setShowHiddenBookmarks(show);
+    });
+
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
+  }, [isAuthenticated]);
+
+  const handleToggleShowHiddenBookmarks = async (show: boolean) => {
+    setShowHiddenBookmarks(show);
+    try {
+      // @ts-ignore
+      await window.electronAPI.settings.setShowHiddenBookmarks(show);
+    } catch (err: any) {
+      console.error('Failed to update show hidden bookmarks setting', err);
+    }
   };
 
   React.useEffect(() => {
@@ -141,6 +171,7 @@ const App: React.FC = () => {
               type={currentTab as any}
               bookmarks={bookmarks}
               loading={bookmarksLoading}
+              showHiddenBookmarks={showHiddenBookmarks}
               onDeleteBookmark={deleteBookmark}
               onToggleFavorite={toggleFavorite}
               onToggleImportant={toggleImportant}
@@ -152,6 +183,7 @@ const App: React.FC = () => {
           {currentTab === 'domains' && (
             <DomainsPage 
               bookmarks={bookmarks}
+              showHiddenBookmarks={showHiddenBookmarks}
               onDeleteBookmark={deleteBookmark}
               onToggleFavorite={toggleFavorite}
               onToggleImportant={toggleImportant}
@@ -163,6 +195,7 @@ const App: React.FC = () => {
           {currentTab === 'tags' && (
             <TagsPage 
               bookmarks={bookmarks}
+              showHiddenBookmarks={showHiddenBookmarks}
               onDeleteBookmark={deleteBookmark}
               onToggleFavorite={toggleFavorite}
               onToggleImportant={toggleImportant}
@@ -174,6 +207,7 @@ const App: React.FC = () => {
           {currentTab === 'collections' && (
             <CollectionsPage 
               bookmarks={bookmarks}
+              showHiddenBookmarks={showHiddenBookmarks}
               onDeleteBookmark={deleteBookmark}
               onToggleFavorite={toggleFavorite}
               onToggleImportant={toggleImportant}
@@ -198,9 +232,11 @@ const App: React.FC = () => {
 
           {currentTab === 'settings' && (
             <SettingsPage 
-              hasPassword={hasPassword}
+              hasPassword={hasPassword} 
+              showHiddenBookmarks={showHiddenBookmarks}
               onSetPassword={setPassword}
               onRemovePassword={removePassword}
+              onToggleShowHiddenBookmarks={handleToggleShowHiddenBookmarks}
               onRefreshAll={refreshAllData}
             />
           )}

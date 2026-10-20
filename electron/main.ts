@@ -12,6 +12,7 @@ import fs from 'node:fs';
 import { registerAuthController } from './controllers/auth.controller';
 import { registerBackupController } from './controllers/backup.controller';
 import { registerBrowserLauncherController } from './controllers/browser-launcher.controller';
+import { registerSettingsController } from './controllers/settings.controller';
 import { browserLauncherService } from './services/browser-launcher.service';
 import { bookmarkService } from './services/bookmark.service';
 import { collectionService } from './services/collection.service';
@@ -129,6 +130,7 @@ app.whenReady().then(() => {
   registerBrowserImportController();
   registerBackupController();
   registerBrowserLauncherController();
+  registerSettingsController();
   
   // Start background jobs
   bookmarkService.purgeExpiredBookmarks();

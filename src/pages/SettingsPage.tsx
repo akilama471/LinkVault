@@ -3,15 +3,19 @@ import { SettingsView } from '../components/settings/SettingsView';
 
 interface SettingsPageProps {
   hasPassword: boolean;
+  showHiddenBookmarks: boolean;
   onSetPassword: (password: string) => Promise<boolean>;
   onRemovePassword?: () => Promise<boolean>;
+  onToggleShowHiddenBookmarks: (show: boolean) => void;
   onRefreshAll: () => void;
 }
 
 export const SettingsPage: React.FC<SettingsPageProps> = ({ 
   hasPassword, 
+  showHiddenBookmarks,
   onSetPassword, 
   onRemovePassword,
+  onToggleShowHiddenBookmarks,
   onRefreshAll 
 }) => {
   return (
@@ -22,8 +26,10 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
       </div>
       <SettingsView 
         hasPassword={hasPassword} 
+        showHiddenBookmarks={showHiddenBookmarks}
         onSetPassword={onSetPassword}
         onRemovePassword={onRemovePassword}
+        onToggleShowHiddenBookmarks={onToggleShowHiddenBookmarks}
         onRefreshAll={onRefreshAll}
       />
     </>
