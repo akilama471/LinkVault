@@ -95,6 +95,11 @@ export const electronAPI = {
       ipcRenderer.on('collections:updated', listener);
       return () => ipcRenderer.removeListener('collections:updated', listener);
     },
+    onTagsUpdated: (callback: () => void) => {
+      const listener = () => callback();
+      ipcRenderer.on('tags:updated', listener);
+      return () => ipcRenderer.removeListener('tags:updated', listener);
+    },
     onJobsUpdated: (callback: () => void) => {
       const listener = () => callback();
       ipcRenderer.on('jobs:logs-updated', listener);

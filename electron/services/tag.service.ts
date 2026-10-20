@@ -1,5 +1,6 @@
 import { Tag } from '../../src/types/models';
 import { tagModel } from '../models/tag.model';
+import { webContents } from 'electron';
 
 export class TagService {
   public getAllTags(): Tag[] {
@@ -13,6 +14,9 @@ export class TagService {
     let tag = tagModel.findByName(cleanName);
     if (!tag) {
       tag = tagModel.create(cleanName);
+      webContents.getAllWebContents().forEach(wc => {
+        wc.send('tags:updated');
+      });
     }
     return tag;
   }
@@ -27,11 +31,18 @@ export class TagService {
     }
     
     tagModel.update(id, cleanName);
-    return tagModel.findById(id)!;
+    const updated = tagModel.findById(id)!;
+    webContents.getAllWebContents().forEach(wc => {
+      wc.send('tags:updated');
+    });
+    return updated;
   }
 
   public deleteTag(id: number): void {
     tagModel.delete(id);
+    webContents.getAllWebContents().forEach(wc => {
+      wc.send('tags:updated');
+    });
   }
 
   public getTagsForBookmark(bookmarkId: number): Tag[] {
@@ -41,6 +52,9 @@ export class TagService {
   public setTagsForBookmark(bookmarkId: number, tagNames: string[]): Tag[] {
     const tagIds = tagNames.map(name => this.getOrCreateTag(name).id);
     tagModel.setTagsForBookmark(bookmarkId, tagIds);
+    webContents.getAllWebContents().forEach(wc => {
+      wc.send('tags:updated');
+    });
     return tagModel.getTagsForBookmark(bookmarkId);
   }
   

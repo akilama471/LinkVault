@@ -27,6 +27,7 @@ export interface Domain {
 export interface Tag {
   id: number;
   name: string;
+  bookmark_count?: number;
   created_at: string;
   updated_at: string;
 }

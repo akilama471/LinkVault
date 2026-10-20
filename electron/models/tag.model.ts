@@ -1,9 +1,18 @@
 import { dbManager } from '../database/db';
 import { Tag } from '../../src/types/models';
+import { settingsService } from '../services/settings.service';
 
 export class TagModel {
   public getAll(): Tag[] {
-    return dbManager.getDb().prepare('SELECT * FROM tags ORDER BY name ASC').all() as Tag[];
+    const showHidden = settingsService.getShowHiddenBookmarks() ? 1 : 0;
+    return dbManager.getDb().prepare(`
+      SELECT t.*,
+        (SELECT COUNT(*) FROM bookmark_tags bt
+         JOIN bookmarks b ON b.id = bt.bookmark_id
+         WHERE bt.tag_id = t.id AND b.deleted_at IS NULL AND (b.hide_mode IS NULL OR b.hide_mode != 2 OR ? = 1)) as bookmark_count
+      FROM tags t
+      ORDER BY t.name ASC
+    `).all(showHidden) as Tag[];
   }
 
   public findByName(name: string): Tag | null {
@@ -24,7 +33,15 @@ export class TagModel {
   }
 
   public findById(id: number): Tag | null {
-    return dbManager.getDb().prepare('SELECT * FROM tags WHERE id = ?').get(id) as Tag | null;
+    const showHidden = settingsService.getShowHiddenBookmarks() ? 1 : 0;
+    return dbManager.getDb().prepare(`
+      SELECT t.*,
+        (SELECT COUNT(*) FROM bookmark_tags bt
+         JOIN bookmarks b ON b.id = bt.bookmark_id
+         WHERE bt.tag_id = t.id AND b.deleted_at IS NULL AND (b.hide_mode IS NULL OR b.hide_mode != 2 OR ? = 1)) as bookmark_count
+      FROM tags t
+      WHERE t.id = ?
+    `).get(showHidden, id) as Tag | null;
   }
 
   // Bookmark <-> Tag relation

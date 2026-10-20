@@ -79,6 +79,7 @@ export declare const electronAPI: {
         onShowHiddenUpdated: (callback: (show: boolean) => void) => () => Electron.IpcRenderer;
         onDomainsUpdated: (callback: () => void) => () => Electron.IpcRenderer;
         onCollectionsUpdated: (callback: () => void) => () => Electron.IpcRenderer;
+        onTagsUpdated: (callback: () => void) => () => Electron.IpcRenderer;
         onJobsUpdated: (callback: () => void) => () => Electron.IpcRenderer;
     };
     jobs: {

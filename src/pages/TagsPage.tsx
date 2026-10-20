@@ -5,7 +5,7 @@ import { BookmarkCard } from '../components/bookmarks/BookmarkCard';
 import { BookmarkDetailsModal } from '../components/bookmarks/BookmarkDetailsModal';
 import { ListViewMenu } from '../components/common/ListViewMenu';
 import { Bookmark, Tag } from '../types/models';
-import { Search, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Search, ChevronLeft, ChevronRight, Plus } from 'lucide-react';
 
 interface TagsPageProps {
   bookmarks: Bookmark[];
@@ -33,6 +33,7 @@ export const TagsPage: React.FC<TagsPageProps> = ({
   const [editingBookmark, setEditingBookmark] = useState<Bookmark | null>(null);
   const [showHiddenInView, setShowHiddenInView] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const ITEMS_PER_PAGE = 50;
 
   const isShowingHidden = showHiddenBookmarks || showHiddenInView;
@@ -51,15 +52,28 @@ export const TagsPage: React.FC<TagsPageProps> = ({
   if (!selectedTag) {
     return (
       <>
-        <div className="mb-6">
-          <h2 className="text-2xl font-bold text-gray-900">Tags</h2>
-          <p className="text-gray-500">
-            {tags.length} {tags.length === 1 ? 'tag' : 'tags'} found
-          </p>
+        <div className="mb-6 flex items-center justify-between">
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900">Tags</h2>
+            <p className="text-gray-500">
+              {tags.length} {tags.length === 1 ? 'tag' : 'tags'} found
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setIsCreateModalOpen(true)}
+            className="bg-emerald-600 text-white px-4 py-2 rounded-xl hover:bg-emerald-700 transition-colors flex items-center gap-2 text-sm font-medium shadow-xs cursor-pointer"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Create Tag</span>
+          </button>
         </div>
         <TagsView 
           tags={tags} 
-          loading={loading} 
+          loading={loading}
+          isCreateModalOpen={isCreateModalOpen}
+          onOpenCreateModal={() => setIsCreateModalOpen(true)}
+          onCloseCreateModal={() => setIsCreateModalOpen(false)}
           onSelectTag={handleSelectTag}
           onCreateTag={createTag}
           onRenameTag={renameTag}

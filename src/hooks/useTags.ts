@@ -24,48 +24,48 @@ export function useTags() {
     }
   }, []);
 
-  const createTag = async (name: string) => {
+  const createTag = async (name: string): Promise<{ success: boolean; data?: Tag; error?: string }> => {
     try {
       // @ts-ignore
       const result = await window.electronAPI.tags.create(name);
       if (result.success) {
         await fetchTags();
-        return result.data;
+        return { success: true, data: result.data };
       }
-      return null;
-    } catch (err) {
+      return { success: false, error: result.error };
+    } catch (err: any) {
       console.error(err);
-      return null;
+      return { success: false, error: err.message };
     }
   };
 
-  const renameTag = async (id: number, newName: string) => {
+  const renameTag = async (id: number, newName: string): Promise<{ success: boolean; data?: Tag; error?: string }> => {
     try {
       // @ts-ignore
       const result = await window.electronAPI.tags.rename(id, newName);
       if (result.success) {
         await fetchTags();
-        return true;
+        return { success: true, data: result.data };
       }
-      return false;
-    } catch (err) {
+      return { success: false, error: result.error };
+    } catch (err: any) {
       console.error(err);
-      return false;
+      return { success: false, error: err.message };
     }
   };
 
-  const deleteTag = async (id: number) => {
+  const deleteTag = async (id: number): Promise<{ success: boolean; error?: string }> => {
     try {
       // @ts-ignore
       const result = await window.electronAPI.tags.delete(id);
       if (result.success) {
         await fetchTags();
-        return true;
+        return { success: true };
       }
-      return false;
-    } catch (err) {
+      return { success: false, error: result.error };
+    } catch (err: any) {
       console.error(err);
-      return false;
+      return { success: false, error: err.message };
     }
   };
 
@@ -85,6 +85,20 @@ export function useTags() {
 
   useEffect(() => {
     fetchTags();
+
+    // @ts-ignore
+    const unsubTags = window.electronAPI?.events?.onTagsUpdated?.(() => {
+      fetchTags();
+    });
+    // @ts-ignore
+    const unsubBookmarks = window.electronAPI?.events?.onBookmarksUpdated?.(() => {
+      fetchTags();
+    });
+
+    return () => {
+      if (unsubTags) unsubTags();
+      if (unsubBookmarks) unsubBookmarks();
+    };
   }, [fetchTags]);
 
   return {
