@@ -1,5 +1,6 @@
 import { dbManager } from '../database/db';
 import { Bookmark } from '../../src/types/models';
+import { sanitizeFtsQuery } from '../utils/search.utils';
 
 export interface CreateBookmarkDTO {
   url: string;
@@ -146,14 +147,91 @@ export class BookmarkModel {
   }
 
   public search(query: string): Bookmark[] {
+    const trimmed = query ? query.trim() : '';
+    if (!trimmed) {
+      return [];
+    }
+
+    const ftsQuery = sanitizeFtsQuery(trimmed);
+    if (!ftsQuery) {
+      return [];
+    }
+
     const db = dbManager.getDb();
+    try {
+      const rows = db.prepare(`
+        SELECT b.* FROM bookmarks b
+        JOIN bookmarks_fts fts ON b.id = fts.rowid
+        WHERE bookmarks_fts MATCH ? AND b.deleted_at IS NULL
+        ORDER BY rank
+      `).all(ftsQuery);
+      return rows.map((row: any) => this.mapRow(row));
+    } catch (error) {
+      console.warn('FTS5 search failed, falling back to LIKE query:', error);
+      return this.fallbackSearch(trimmed);
+    }
+  }
+
+  /**
+   * Resilient fallback query using LIKE across bookmarks, tags, and domains
+   * if FTS5 encounters any unexpected parsing/matching errors.
+   */
+  public fallbackSearch(query: string): Bookmark[] {
+    const db = dbManager.getDb();
+    const likeTerm = `%${query.replace(/[%_\\]/g, '\\$&')}%`;
     const rows = db.prepare(`
-      SELECT b.* FROM bookmarks b
-      JOIN bookmarks_fts fts ON b.id = fts.rowid
-      WHERE bookmarks_fts MATCH ? AND b.deleted_at IS NULL
-      ORDER BY rank
-    `).all(query);
+      SELECT DISTINCT b.* FROM bookmarks b
+      LEFT JOIN domains d ON b.domain_id = d.id
+      LEFT JOIN bookmark_tags bt ON b.id = bt.bookmark_id
+      LEFT JOIN tags t ON bt.tag_id = t.id
+      WHERE b.deleted_at IS NULL AND (
+        b.title LIKE ? ESCAPE '\\' OR
+        b.url LIKE ? ESCAPE '\\' OR
+        b.description LIKE ? ESCAPE '\\' OR
+        b.notes LIKE ? ESCAPE '\\' OR
+        d.domain LIKE ? ESCAPE '\\' OR
+        d.display_name LIKE ? ESCAPE '\\' OR
+        t.name LIKE ? ESCAPE '\\'
+      )
+      ORDER BY b.created_at DESC
+    `).all(likeTerm, likeTerm, likeTerm, likeTerm, likeTerm, likeTerm, likeTerm);
     return rows.map((row: any) => this.mapRow(row));
+  }
+
+  /**
+   * Fully rebuilds the bookmarks_fts virtual table from active database records.
+   */
+  public rebuildFts(): void {
+    const db = dbManager.getDb();
+    db.transaction(() => {
+      db.prepare('DELETE FROM bookmarks_fts').run();
+      db.prepare(`
+        INSERT INTO bookmarks_fts(rowid, title, url, description, notes, tags, domain)
+        SELECT 
+          b.id, b.title, b.url, b.description, b.notes,
+          (SELECT GROUP_CONCAT(t.name, ' ') FROM bookmark_tags bt JOIN tags t ON bt.tag_id = t.id WHERE bt.bookmark_id = b.id),
+          (SELECT d.domain || ' ' || COALESCE(d.display_name, '') FROM domains d WHERE d.id = b.domain_id)
+        FROM bookmarks b
+      `).run();
+    })();
+  }
+
+  /**
+   * Manually syncs an individual bookmark record into bookmarks_fts.
+   */
+  public syncBookmarkFts(bookmarkId: number): void {
+    const db = dbManager.getDb();
+    db.transaction(() => {
+      db.prepare('DELETE FROM bookmarks_fts WHERE rowid = ?').run(bookmarkId);
+      db.prepare(`
+        INSERT INTO bookmarks_fts(rowid, title, url, description, notes, tags, domain)
+        SELECT 
+          b.id, b.title, b.url, b.description, b.notes,
+          (SELECT GROUP_CONCAT(t.name, ' ') FROM bookmark_tags bt JOIN tags t ON bt.tag_id = t.id WHERE bt.bookmark_id = b.id),
+          (SELECT d.domain || ' ' || COALESCE(d.display_name, '') FROM domains d WHERE d.id = b.domain_id)
+        FROM bookmarks b WHERE b.id = ?
+      `).run(bookmarkId);
+    })();
   }
 
   private mapRow(row: any): Bookmark {

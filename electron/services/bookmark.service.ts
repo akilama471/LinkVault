@@ -136,16 +136,7 @@ export class BookmarkService {
 
   public searchBookmarks(query: string): Bookmark[] {
     this.purgeExpiredBookmarks();
-    // Sanitize query to prevent FTS5 syntax errors (remove double quotes)
-    const sanitizedQuery = query.replace(/"/g, '').trim();
-    
-    if (!sanitizedQuery) {
-      return [];
-    }
-
-    // Add wildcards for partial matching in FTS5
-    const ftsQuery = sanitizedQuery.split(/\s+/).map(word => `"${word}"*`).join(' AND ');
-    return bookmarkModel.search(ftsQuery);
+    return bookmarkModel.search(query);
   }
 
   public updateBookmark(id: number, data: UpdateBookmarkDTO): Bookmark {

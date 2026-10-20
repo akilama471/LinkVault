@@ -176,6 +176,118 @@ export class DbManager {
           ALTER TABLE bookmarks ADD COLUMN hide_mode INTEGER DEFAULT 0;
           CREATE INDEX idx_bookmarks_hide_mode ON bookmarks(hide_mode);
         `,
+      },
+      {
+        version: 7,
+        up: `
+          -- Drop legacy triggers and FTS table
+          DROP TRIGGER IF EXISTS bookmarks_ai;
+          DROP TRIGGER IF EXISTS bookmarks_au;
+          DROP TRIGGER IF EXISTS bookmarks_ad;
+          DROP TABLE IF EXISTS bookmarks_fts;
+
+          -- Create unified FTS5 virtual table indexing title, url, description, notes, tags, and domain
+          CREATE VIRTUAL TABLE bookmarks_fts USING fts5(
+            title, url, description, notes, tags, domain
+          );
+
+          -- Trigger: Insert bookmark into FTS5
+          CREATE TRIGGER bookmarks_fts_ai AFTER INSERT ON bookmarks BEGIN
+            INSERT INTO bookmarks_fts(rowid, title, url, description, notes, tags, domain)
+            VALUES (
+              new.id,
+              new.title,
+              new.url,
+              new.description,
+              new.notes,
+              (SELECT GROUP_CONCAT(t.name, ' ') FROM bookmark_tags bt JOIN tags t ON bt.tag_id = t.id WHERE bt.bookmark_id = new.id),
+              (SELECT d.domain || ' ' || COALESCE(d.display_name, '') FROM domains d WHERE d.id = new.domain_id)
+            );
+          END;
+
+          -- Trigger: Update bookmark in FTS5
+          CREATE TRIGGER bookmarks_fts_au AFTER UPDATE ON bookmarks BEGIN
+            DELETE FROM bookmarks_fts WHERE rowid = old.id;
+            INSERT INTO bookmarks_fts(rowid, title, url, description, notes, tags, domain)
+            VALUES (
+              new.id,
+              new.title,
+              new.url,
+              new.description,
+              new.notes,
+              (SELECT GROUP_CONCAT(t.name, ' ') FROM bookmark_tags bt JOIN tags t ON bt.tag_id = t.id WHERE bt.bookmark_id = new.id),
+              (SELECT d.domain || ' ' || COALESCE(d.display_name, '') FROM domains d WHERE d.id = new.domain_id)
+            );
+          END;
+
+          -- Trigger: Delete bookmark from FTS5
+          CREATE TRIGGER bookmarks_fts_ad AFTER DELETE ON bookmarks BEGIN
+            DELETE FROM bookmarks_fts WHERE rowid = old.id;
+          END;
+
+          -- Trigger: Add tag to bookmark
+          CREATE TRIGGER bookmark_tags_fts_ai AFTER INSERT ON bookmark_tags BEGIN
+            DELETE FROM bookmarks_fts WHERE rowid = new.bookmark_id;
+            INSERT INTO bookmarks_fts(rowid, title, url, description, notes, tags, domain)
+            SELECT 
+              b.id, b.title, b.url, b.description, b.notes,
+              (SELECT GROUP_CONCAT(t.name, ' ') FROM bookmark_tags bt JOIN tags t ON bt.tag_id = t.id WHERE bt.bookmark_id = b.id),
+              (SELECT d.domain || ' ' || COALESCE(d.display_name, '') FROM domains d WHERE d.id = b.domain_id)
+            FROM bookmarks b WHERE b.id = new.bookmark_id;
+          END;
+
+          -- Trigger: Remove tag from bookmark
+          CREATE TRIGGER bookmark_tags_fts_ad AFTER DELETE ON bookmark_tags BEGIN
+            DELETE FROM bookmarks_fts WHERE rowid = old.bookmark_id;
+            INSERT INTO bookmarks_fts(rowid, title, url, description, notes, tags, domain)
+            SELECT 
+              b.id, b.title, b.url, b.description, b.notes,
+              (SELECT GROUP_CONCAT(t.name, ' ') FROM bookmark_tags bt JOIN tags t ON bt.tag_id = t.id WHERE bt.bookmark_id = b.id),
+              (SELECT d.domain || ' ' || COALESCE(d.display_name, '') FROM domains d WHERE d.id = b.domain_id)
+            FROM bookmarks b WHERE b.id = old.bookmark_id;
+          END;
+
+          -- Trigger: Tag name updated
+          CREATE TRIGGER tags_fts_au AFTER UPDATE OF name ON tags BEGIN
+            DELETE FROM bookmarks_fts WHERE rowid IN (SELECT bookmark_id FROM bookmark_tags WHERE tag_id = new.id);
+            INSERT INTO bookmarks_fts(rowid, title, url, description, notes, tags, domain)
+            SELECT 
+              b.id, b.title, b.url, b.description, b.notes,
+              (SELECT GROUP_CONCAT(t.name, ' ') FROM bookmark_tags bt JOIN tags t ON bt.tag_id = t.id WHERE bt.bookmark_id = b.id),
+              (SELECT d.domain || ' ' || COALESCE(d.display_name, '') FROM domains d WHERE d.id = b.domain_id)
+            FROM bookmarks b WHERE b.id IN (SELECT bookmark_id FROM bookmark_tags WHERE tag_id = new.id);
+          END;
+
+          -- Trigger: Domain updated
+          CREATE TRIGGER domains_fts_au AFTER UPDATE ON domains BEGIN
+            DELETE FROM bookmarks_fts WHERE rowid IN (SELECT id FROM bookmarks WHERE domain_id = new.id);
+            INSERT INTO bookmarks_fts(rowid, title, url, description, notes, tags, domain)
+            SELECT 
+              b.id, b.title, b.url, b.description, b.notes,
+              (SELECT GROUP_CONCAT(t.name, ' ') FROM bookmark_tags bt JOIN tags t ON bt.tag_id = t.id WHERE bt.bookmark_id = b.id),
+              (SELECT d.domain || ' ' || COALESCE(d.display_name, '') FROM domains d WHERE d.id = b.domain_id)
+            FROM bookmarks b WHERE b.domain_id = new.id;
+          END;
+
+          -- Trigger: Domain deleted
+          CREATE TRIGGER domains_fts_ad AFTER DELETE ON domains BEGIN
+            DELETE FROM bookmarks_fts WHERE rowid IN (SELECT id FROM bookmarks WHERE domain_id = old.id);
+            INSERT INTO bookmarks_fts(rowid, title, url, description, notes, tags, domain)
+            SELECT 
+              b.id, b.title, b.url, b.description, b.notes,
+              (SELECT GROUP_CONCAT(t.name, ' ') FROM bookmark_tags bt JOIN tags t ON bt.tag_id = t.id WHERE bt.bookmark_id = b.id),
+              NULL
+            FROM bookmarks b WHERE b.domain_id = old.id;
+          END;
+
+          -- Initial population of unified bookmarks_fts with all existing bookmarks, tags, and domains
+          INSERT INTO bookmarks_fts(rowid, title, url, description, notes, tags, domain)
+          SELECT 
+            b.id, b.title, b.url, b.description, b.notes,
+            (SELECT GROUP_CONCAT(t.name, ' ') FROM bookmark_tags bt JOIN tags t ON bt.tag_id = t.id WHERE bt.bookmark_id = b.id),
+            (SELECT d.domain || ' ' || COALESCE(d.display_name, '') FROM domains d WHERE d.id = b.domain_id)
+          FROM bookmarks b;
+        `,
       }
     ];
 

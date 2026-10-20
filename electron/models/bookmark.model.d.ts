@@ -47,6 +47,19 @@ export declare class BookmarkModel {
     getAll(): Bookmark[];
     getDeleted(): Bookmark[];
     search(query: string): Bookmark[];
+    /**
+     * Resilient fallback query using LIKE across bookmarks, tags, and domains
+     * if FTS5 encounters any unexpected parsing/matching errors.
+     */
+    fallbackSearch(query: string): Bookmark[];
+    /**
+     * Fully rebuilds the bookmarks_fts virtual table from active database records.
+     */
+    rebuildFts(): void;
+    /**
+     * Manually syncs an individual bookmark record into bookmarks_fts.
+     */
+    syncBookmarkFts(bookmarkId: number): void;
     private mapRow;
 }
 export declare const bookmarkModel: BookmarkModel;
