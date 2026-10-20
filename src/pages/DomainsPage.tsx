@@ -83,14 +83,8 @@ export const DomainsPage: React.FC<DomainsPageProps> = ({
   });
 
   const totalPages = Math.ceil(sortedBookmarks.length / ITEMS_PER_PAGE);
-
-  React.useEffect(() => {
-    if (totalPages > 0 && currentPage > totalPages) {
-      setCurrentPage(totalPages);
-    }
-  }, [totalPages, currentPage]);
-
-  const paginatedBookmarks = sortedBookmarks.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+  const validCurrentPage = totalPages > 0 ? Math.min(Math.max(1, currentPage), totalPages) : 1;
+  const paginatedBookmarks = sortedBookmarks.slice((validCurrentPage - 1) * ITEMS_PER_PAGE, validCurrentPage * ITEMS_PER_PAGE);
 
   const selectedDisplayName = selectedDomain.display_name || selectedDomain.domain;
 
@@ -165,24 +159,24 @@ export const DomainsPage: React.FC<DomainsPageProps> = ({
       {sortedBookmarks.length > ITEMS_PER_PAGE && (
         <div className="flex items-center justify-between mt-8 bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
           <p className="text-sm text-gray-600">
-            Showing <span className="font-semibold text-gray-900">{(currentPage - 1) * ITEMS_PER_PAGE + 1}</span> to <span className="font-semibold text-gray-900">{Math.min(currentPage * ITEMS_PER_PAGE, sortedBookmarks.length)}</span> of <span className="font-semibold text-gray-900">{sortedBookmarks.length}</span> results
+            Showing <span className="font-semibold text-gray-900">{(validCurrentPage - 1) * ITEMS_PER_PAGE + 1}</span> to <span className="font-semibold text-gray-900">{Math.min(validCurrentPage * ITEMS_PER_PAGE, sortedBookmarks.length)}</span> of <span className="font-semibold text-gray-900">{sortedBookmarks.length}</span> results
           </p>
           <div className="flex items-center gap-2">
             <button
               onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-              disabled={currentPage === 1}
+              disabled={validCurrentPage <= 1}
               className="p-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:hover:bg-white transition-colors cursor-pointer"
             >
               <ChevronLeft className="w-5 h-5" />
             </button>
             <div className="flex items-center gap-1">
               <span className="text-sm font-medium text-gray-900 px-3 py-1 bg-gray-100 rounded-lg">
-                Page {currentPage} of {totalPages}
+                Page {validCurrentPage} of {totalPages}
               </span>
             </div>
             <button
               onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-              disabled={currentPage === totalPages}
+              disabled={validCurrentPage >= totalPages}
               className="p-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:hover:bg-white transition-colors cursor-pointer"
             >
               <ChevronRight className="w-5 h-5" />

@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, dialog } from 'electron';
+import { app, BrowserWindow, ipcMain, dialog, session, protocol } from 'electron';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { registerBookmarkController } from './controllers/bookmark.controller';
@@ -7,7 +7,6 @@ import { registerTagController } from './controllers/tag.controller';
 import { registerCollectionController } from './controllers/collection.controller';
 import { registerBrowserImportController } from './controllers/browser-import.controller';
 import { enrichmentService } from './services/enrichment.service';
-import { protocol } from 'electron';
 import fs from 'node:fs';
 import { registerAuthController } from './controllers/auth.controller';
 import { registerBackupController } from './controllers/backup.controller';
@@ -63,6 +62,21 @@ function createWindow() {
   // Hide menu bar by default for a modern look
   win.setMenuBarVisibility(false);
 
+  // Enable Developer Tools for debugging
+  win.webContents.openDevTools();
+
+  // Allow toggling DevTools using F12 or Ctrl+Shift+I (or Cmd+Option+I on macOS)
+  win.webContents.on('before-input-event', (event, input) => {
+    if (input.type === 'keyDown') {
+      const isF12 = input.key === 'F12';
+      const isDevToolsCombo = (input.control || input.meta) && input.shift && (input.key === 'I' || input.key === 'i');
+      if (isF12 || isDevToolsCombo) {
+        win?.webContents.toggleDevTools();
+        event.preventDefault();
+      }
+    }
+  });
+
   win.webContents.setWindowOpenHandler(({ url }) => {
     if (url.startsWith('http')) {
       browserLauncherService.openUrl(url).catch(console.error);
@@ -85,6 +99,18 @@ app.on('activate', () => {
 });
 
 app.whenReady().then(() => {
+  // Set Content-Security-Policy headers
+  session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
+    callback({
+      responseHeaders: {
+        ...details.responseHeaders,
+        'Content-Security-Policy': [
+          "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: asset: blob: https: http:; font-src 'self' data: https:; connect-src 'self' ws: http: https:;"
+        ]
+      }
+    });
+  });
+
   // Initialize Database
   try {
     dbManager.getDb();
