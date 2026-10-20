@@ -1,18 +1,28 @@
 import { Bookmark } from '../../src/types/models';
 import { bookmarkModel, UpdateBookmarkDTO } from '../models/bookmark.model';
+import { domainModel } from '../models/domain.model';
 import { metadataService } from './metadata.service';
 import { assetService } from './asset.service';
 import { domainService } from './domain.service';
+import { enrichmentService } from './enrichment.service';
 import { dbManager } from '../database/db';
 import { webContents } from 'electron';
 
 export class BookmarkService {
   /**
-   * Adds a new bookmark by scraping its URL for metadata and downloading assets.
+   * Adds a new bookmark immediately with pending enrichment and delegates
+   * metadata scraping and asset downloads to the background enrichment job.
    */
   public async addBookmark(url: string): Promise<Bookmark> {
     if (!url.startsWith('http://') && !url.startsWith('https://')) {
       throw new Error('Invalid URL: Must start with http:// or https://');
+    }
+
+    let parsedUrl: URL;
+    try {
+      parsedUrl = new URL(url);
+    } catch {
+      throw new Error('Invalid URL format');
     }
 
     // 1. Check if it already exists
@@ -26,58 +36,47 @@ export class BookmarkService {
       }
     }
 
-    // 2. Fetch Metadata
-    const metadata = await metadataService.extractMetadata(url);
-
-    if (metadata.url) {
-      const altMetaUrl = metadata.url.endsWith('/') ? metadata.url.slice(0, -1) : metadata.url + '/';
-      const existingMeta = bookmarkModel.findByUrl(metadata.url) || bookmarkModel.findByUrl(altMetaUrl);
-      if (existingMeta) {
-        if (existingMeta.deleted_at) {
-          bookmarkModel.permanentDelete(existingMeta.id);
-        } else {
-          throw new Error('Bookmark already exists');
-        }
-      }
+    // 2. Resolve domain synchronously without network requests
+    const domainName = parsedUrl.hostname;
+    let domain = domainModel.findByDomain(domainName);
+    if (!domain) {
+      domain = domainModel.create(domainName, null);
     }
 
-    // 3. Handle Domain & Favicon caching
-    const domain = await domainService.getOrCreateDomain(metadata.domain, metadata.faviconUrl);
-
-    // 4. Download Preview Image (if available) and generate thumbnail
-    let previewPath: string | null = null;
-    let thumbnailPath: string | null = null;
-
-    if (metadata.previewImageUrl) {
-      previewPath = await assetService.downloadImage(metadata.previewImageUrl, 'prev');
-      if (previewPath) {
-        thumbnailPath = await assetService.generateThumbnail(previewPath);
-      }
-    }
-
-    // 5. Save to database using transaction
+    // 3. Save bookmark to database immediately with 'pending' thumbnail status
     const db = dbManager.getDb();
-    
-    // We use a transaction in case there are tags/collections to be added in the future
     const createTransaction = db.transaction(() => {
       return bookmarkModel.create({
-        url: metadata.url,
-        title: metadata.title,
-        description: metadata.description,
+        url,
+        title: domainName,
+        description: null,
         domain_id: domain.id,
-        preview_path: previewPath,
-        thumbnail_path: thumbnailPath
+        preview_path: null,
+        thumbnail_path: 'pending'
       });
     });
 
+    let createdBookmark: Bookmark;
     try {
-      return createTransaction();
+      createdBookmark = createTransaction();
     } catch (err: any) {
       if (err.message && err.message.includes('UNIQUE constraint failed')) {
         throw new Error('Bookmark already exists');
       }
       throw err;
     }
+
+    // 4. Broadcast update to webContents so the bookmark appears instantly in the UI
+    webContents.getAllWebContents().forEach(wc => {
+      wc.send('bookmarks:updated');
+    });
+
+    // 5. Delegate metadata scraping and asset generation to background enrichment job
+    enrichmentService.startEnrichmentJob().catch(err => {
+      console.error('[BookmarkService] Background enrichment failed to start:', err);
+    });
+
+    return createdBookmark;
   }
 
   /**

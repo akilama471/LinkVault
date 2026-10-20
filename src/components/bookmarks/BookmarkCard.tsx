@@ -208,6 +208,13 @@ export const BookmarkCard: React.FC<BookmarkCardProps> = ({
           ) : (
             <Globe className="w-12 h-12 text-gray-300" />
           )}
+
+          {bookmark.thumbnail_path === 'pending' && (
+            <div className="absolute bottom-2 left-2 flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-white/95 border border-blue-200 text-[11px] font-medium text-blue-600 shadow-xs backdrop-blur-xs">
+              <Loader2 className="w-3 h-3 animate-spin text-blue-500" />
+              <span>Fetching details...</span>
+            </div>
+          )}
           <div className="absolute top-2 right-2 flex items-center gap-1">
             <button
               onClick={() => onToggleImportant(bookmark.id, bookmark.is_important)}

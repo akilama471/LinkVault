@@ -106,7 +106,7 @@ const App: React.FC = () => {
         );
       }
     } else if (result && result.success) {
-      success('Bookmark Added', 'Bookmark has been added successfully.');
+      success('Bookmark Added', 'Fetching preview and details in the background...');
     }
   };
 

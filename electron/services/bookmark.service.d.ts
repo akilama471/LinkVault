@@ -2,7 +2,8 @@ import { Bookmark } from '../../src/types/models';
 import { UpdateBookmarkDTO } from '../models/bookmark.model';
 export declare class BookmarkService {
     /**
-     * Adds a new bookmark by scraping its URL for metadata and downloading assets.
+     * Adds a new bookmark immediately with pending enrichment and delegates
+     * metadata scraping and asset downloads to the background enrichment job.
      */
     addBookmark(url: string): Promise<Bookmark>;
     /**

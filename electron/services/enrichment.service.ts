@@ -16,6 +16,7 @@ export interface JobLog {
 
 class EnrichmentService {
   private isProcessing = false;
+  private hasPendingWork = false;
   private shouldStop = false;
   private logs: JobLog[] = [];
   private logCounter = 0;
@@ -69,20 +70,30 @@ class EnrichmentService {
   }
 
   public async startEnrichmentJob() {
-    if (this.isProcessing) return;
+    if (this.isProcessing) {
+      this.hasPendingWork = true;
+      return;
+    }
     this.isProcessing = true;
     this.shouldStop = false;
 
+    let isFirstItem = true;
+
     try {
       while (!this.shouldStop) {
-        // Fetch 5 bookmarks that have thumbnail_path='pending' (indicating they were freshly imported)
+        // Fetch 5 bookmarks that have thumbnail_path='pending', newest first so recently added bookmarks get priority
         const pendingBookmarks = dbManager.getDb().prepare(`
           SELECT id, url, title FROM bookmarks 
           WHERE thumbnail_path = 'pending' AND deleted_at IS NULL
+          ORDER BY id DESC
           LIMIT 5
         `).all() as { id: number; url: string; title: string | null }[];
 
         if (pendingBookmarks.length === 0) {
+          if (this.hasPendingWork) {
+            this.hasPendingWork = false;
+            continue;
+          }
           break; // Nothing left to process
         }
 
@@ -93,15 +104,32 @@ class EnrichmentService {
             console.log(`[Enrichment Job] ${msg} : ${bookmark.url}`);
             this.addLog(bookmark.id, bookmark.url, 'processing', msg);
             
-            // Wait 2 seconds before making network requests to avoid IP bans / Rate Limits
-            await new Promise(resolve => setTimeout(resolve, 2000));
-            if (this.shouldStop) break;
+            // Only delay between subsequent requests to avoid rate limits (first item runs immediately)
+            if (!isFirstItem) {
+              await new Promise(resolve => setTimeout(resolve, 1500));
+              if (this.shouldStop) break;
+            }
+            isFirstItem = false;
 
             const metadata = await metadataService.extractMetadata(bookmark.url);
             if (this.shouldStop) break;
             
-            // Prefer original title if it's not "Untitled", else use metadata title
-            const finalTitle = (bookmark.title && bookmark.title !== 'Untitled' && bookmark.title !== bookmark.url) ? bookmark.title : metadata.title;
+            let hostname = '';
+            try {
+              hostname = new URL(bookmark.url).hostname;
+            } catch {}
+
+            // If current title is a placeholder (empty, 'Untitled', URL, domain, or hostname), use metadata title
+            const isPlaceholderTitle =
+              !bookmark.title ||
+              bookmark.title === 'Untitled' ||
+              bookmark.title === bookmark.url ||
+              bookmark.title === metadata.domain ||
+              (hostname && bookmark.title === hostname);
+
+            const finalTitle = isPlaceholderTitle
+              ? (metadata.title || bookmark.title || 'Untitled')
+              : (bookmark.title || metadata.title || 'Untitled');
 
             const domain = await domainService.getOrCreateDomain(metadata.domain, metadata.faviconUrl);
 
@@ -128,6 +156,7 @@ class EnrichmentService {
             // Notify frontend
             webContents.getAllWebContents().forEach(wc => {
               wc.send('bookmarks:updated');
+              wc.send('domains:updated');
             });
 
             this.addLog(bookmark.id, bookmark.url, 'success', 'Successfully enriched title, description, and thumbnail.');
@@ -138,11 +167,16 @@ class EnrichmentService {
             
             // On failure, clear the pending flag so we don't loop infinitely
             bookmarkModel.update(bookmark.id, { thumbnail_path: null });
+
+            webContents.getAllWebContents().forEach(wc => {
+              wc.send('bookmarks:updated');
+            });
           }
         }
       }
     } finally {
       this.isProcessing = false;
+      this.hasPendingWork = false;
     }
   }
 }

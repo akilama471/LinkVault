@@ -8,6 +8,7 @@ export interface JobLog {
 }
 declare class EnrichmentService {
     private isProcessing;
+    private hasPendingWork;
     private shouldStop;
     private logs;
     private logCounter;
