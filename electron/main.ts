@@ -13,6 +13,7 @@ import { registerBackupController } from './controllers/backup.controller';
 import { registerBrowserLauncherController } from './controllers/browser-launcher.controller';
 import { registerSettingsController } from './controllers/settings.controller';
 import { registerAssetController } from './controllers/asset.controller';
+import { registerDatabaseController } from './controllers/database.controller';
 import { browserLauncherService } from './services/browser-launcher.service';
 import { bookmarkService } from './services/bookmark.service';
 import { collectionService } from './services/collection.service';
@@ -93,6 +94,14 @@ app.on('window-all-closed', () => {
   }
 });
 
+app.on('before-quit', () => {
+  try {
+    dbManager.close();
+  } catch (error) {
+    console.error('Error during shutdown database checkpoint:', error);
+  }
+});
+
 app.on('activate', () => {
   if (BrowserWindow.getAllWindows().length === 0) {
     createWindow();
@@ -159,6 +168,7 @@ app.whenReady().then(() => {
   registerBrowserLauncherController();
   registerSettingsController();
   registerAssetController();
+  registerDatabaseController();
   
   // Start background jobs
   bookmarkService.purgeExpiredBookmarks();

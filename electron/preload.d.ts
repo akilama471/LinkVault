@@ -78,6 +78,10 @@ export declare const electronAPI: {
         getStorageStats: () => Promise<any>;
         vacuum: () => Promise<any>;
     };
+    database: {
+        getStats: () => Promise<any>;
+        optimize: () => Promise<any>;
+    };
     events: {
         onBookmarksUpdated: (callback: () => void) => () => Electron.IpcRenderer;
         onShowHiddenUpdated: (callback: (show: boolean) => void) => () => Electron.IpcRenderer;

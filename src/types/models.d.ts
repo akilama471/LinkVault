@@ -58,3 +58,25 @@ export interface VacuumResult {
     reclaimedBytes: number;
     errors: string[];
 }
+export interface DatabaseStorageStats {
+    dbSizeBytes: number;
+    walSizeBytes: number;
+    shmSizeBytes: number;
+    totalSizeBytes: number;
+    pageCount: number;
+    pageSize: number;
+    freelistCount: number;
+    freelistSizeBytes: number;
+    journalMode: string;
+}
+export interface DatabaseOptimizationResult {
+    beforeSizeBytes: number;
+    afterSizeBytes: number;
+    reclaimedBytes: number;
+    checkpointResult: {
+        busy: number;
+        log: number;
+        checkpointed: number;
+    };
+    timestamp: string;
+}

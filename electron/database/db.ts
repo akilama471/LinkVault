@@ -4,10 +4,12 @@ const Database = require(dbName);
 import path from 'node:path';
 import { app } from 'electron';
 import fs from 'node:fs';
+import { DatabaseStorageStats, DatabaseOptimizationResult } from '../../src/types/models';
 
 export class DbManager {
   private db: DatabaseType | null = null;
   private readonly dbPath: string;
+  private checkpointTimer: NodeJS.Timeout | null = null;
 
   constructor() {
     const userDataPath = app.getPath('userData');
@@ -22,6 +24,7 @@ export class DbManager {
       this.db!.pragma('foreign_keys = ON');
       console.log(`Database initialized at: ${this.dbPath}`);
       this.runMigrations();
+      this.startPeriodicCheckpoint();
     } catch (error) {
       console.error('Failed to initialize database:', error);
       throw error;
@@ -308,6 +311,171 @@ export class DbManager {
           throw error;
         }
       }
+    }
+  }
+
+  /**
+   * Executes a WAL checkpoint to flush pending write-ahead log frames into the main database file.
+   * TRUNCATE flushes and truncates the WAL file to 0 bytes.
+   */
+  public checkpoint(mode: 'PASSIVE' | 'FULL' | 'RESTART' | 'TRUNCATE' = 'TRUNCATE'): { busy: number; log: number; checkpointed: number } {
+    const db = this.getDb();
+    try {
+      const res = db.pragma(`wal_checkpoint(${mode})`) as Array<{ busy: number; log: number; checkpointed: number }>;
+      return res && res.length > 0 ? res[0] : { busy: 0, log: 0, checkpointed: 0 };
+    } catch (error) {
+      console.error(`[DbManager] Failed to run wal_checkpoint(${mode}):`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Executes SQLite VACUUM to defragment the database, rebuild indices, and reclaim free space.
+   */
+  public vacuum(): void {
+    const db = this.getDb();
+    try {
+      db.exec('VACUUM');
+    } catch (error) {
+      console.error('[DbManager] Failed to run VACUUM:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Runs SQLite PRAGMA optimize to refresh query planner statistics and optimize internal structures.
+   */
+  public optimize(): void {
+    const db = this.getDb();
+    try {
+      db.pragma('optimize');
+    } catch (error) {
+      console.warn('[DbManager] Failed to run PRAGMA optimize:', error);
+    }
+  }
+
+  /**
+   * Gathers detailed storage footprint metrics for the main sqlite database and WAL files.
+   */
+  public getStorageStats(): DatabaseStorageStats {
+    const db = this.getDb();
+    const walPath = `${this.dbPath}-wal`;
+    const shmPath = `${this.dbPath}-shm`;
+
+    const getFileSize = (filePath: string): number => {
+      try {
+        return fs.existsSync(filePath) ? fs.statSync(filePath).size : 0;
+      } catch {
+        return 0;
+      }
+    };
+
+    const dbSizeBytes = getFileSize(this.dbPath);
+    const walSizeBytes = getFileSize(walPath);
+    const shmSizeBytes = getFileSize(shmPath);
+    const totalSizeBytes = dbSizeBytes + walSizeBytes + shmSizeBytes;
+
+    let pageCount = 0;
+    let pageSize = 4096;
+    let freelistCount = 0;
+    let journalMode = 'wal';
+
+    try {
+      pageCount = (db.pragma('page_count', { simple: true }) as number) || 0;
+      pageSize = (db.pragma('page_size', { simple: true }) as number) || 4096;
+      freelistCount = (db.pragma('freelist_count', { simple: true }) as number) || 0;
+      journalMode = (db.pragma('journal_mode', { simple: true }) as string) || 'wal';
+    } catch (err) {
+      console.warn('[DbManager] Failed to read database pragmas:', err);
+    }
+
+    const freelistSizeBytes = freelistCount * pageSize;
+
+    return {
+      dbSizeBytes,
+      walSizeBytes,
+      shmSizeBytes,
+      totalSizeBytes,
+      pageCount,
+      pageSize,
+      freelistCount,
+      freelistSizeBytes,
+      journalMode,
+    };
+  }
+
+  /**
+   * Checkpoints WAL, runs full VACUUM, and optimizes SQLite indices, returning reclaimed space metrics.
+   */
+  public optimizeAndCompact(): DatabaseOptimizationResult {
+    const beforeStats = this.getStorageStats();
+    const beforeSizeBytes = beforeStats.totalSizeBytes;
+
+    // 1. Flush and truncate WAL log file
+    const checkpointResult = this.checkpoint('TRUNCATE');
+
+    // 2. Rebuild and defragment database
+    this.vacuum();
+
+    // 3. Optimize query planner
+    this.optimize();
+
+    const afterStats = this.getStorageStats();
+    const afterSizeBytes = afterStats.totalSizeBytes;
+    const reclaimedBytes = Math.max(0, beforeSizeBytes - afterSizeBytes);
+
+    console.log(`[DbManager] Database optimized: reclaimed ${reclaimedBytes} bytes. (Before: ${beforeSizeBytes}B, After: ${afterSizeBytes}B)`);
+
+    return {
+      beforeSizeBytes,
+      afterSizeBytes,
+      reclaimedBytes,
+      checkpointResult,
+      timestamp: new Date().toISOString(),
+    };
+  }
+
+  /**
+   * Starts a periodic WAL checkpoint timer (default every 15 minutes) to prevent WAL file bloat.
+   */
+  public startPeriodicCheckpoint(intervalMs: number = 15 * 60 * 1000): void {
+    if (this.checkpointTimer) {
+      clearInterval(this.checkpointTimer);
+    }
+    this.checkpointTimer = setInterval(() => {
+      try {
+        const res = this.checkpoint('PASSIVE');
+        console.log('[DbManager] Periodic WAL checkpoint completed:', res);
+      } catch (err) {
+        console.warn('[DbManager] Periodic WAL checkpoint failed:', err);
+      }
+    }, intervalMs);
+  }
+
+  /**
+   * Stops the periodic checkpoint timer.
+   */
+  public stopPeriodicCheckpoint(): void {
+    if (this.checkpointTimer) {
+      clearInterval(this.checkpointTimer);
+      this.checkpointTimer = null;
+    }
+  }
+
+  /**
+   * Performs clean shutdown checkpoint and optimization before closing database connection.
+   */
+  public close(): void {
+    this.stopPeriodicCheckpoint();
+    if (!this.db) return;
+    try {
+      this.checkpoint('TRUNCATE');
+      this.optimize();
+      this.db.close();
+      this.db = null;
+      console.log('[DbManager] Database checkpointed and closed cleanly.');
+    } catch (err) {
+      console.error('[DbManager] Error while closing database:', err);
     }
   }
 }

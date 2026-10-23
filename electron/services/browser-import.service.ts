@@ -186,7 +186,7 @@ export class BrowserImportService {
     
     let importedCount = 0;
     let duplicateCount = 0;
-    const CHUNK_SIZE = 100;
+    const CHUNK_SIZE = 200;
     
     for (let i = 0; i < bookmarks.length; i += CHUNK_SIZE) {
       const chunk = bookmarks.slice(i, i + CHUNK_SIZE);
@@ -201,9 +201,17 @@ export class BrowserImportService {
           }
         }
       })();
-      // Yield to event loop to prevent UI blocking
-      await new Promise(resolve => setTimeout(resolve, 0));
+      // Yield to the event loop using setImmediate to prevent main/UI thread starvation
+      await new Promise(resolve => setImmediate(resolve));
     }
+
+    // Flush and checkpoint WAL frames after bulk import completes
+    try {
+      dbManager.checkpoint('PASSIVE');
+    } catch (e) {
+      console.warn('[BrowserImportService] Post-import WAL checkpoint warning:', e);
+    }
+
     return {
       imported: importedCount,
       duplicates: duplicateCount,

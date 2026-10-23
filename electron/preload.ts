@@ -78,6 +78,10 @@ export const electronAPI = {
     getStorageStats: () => ipcRenderer.invoke('assets:getStorageStats'),
     vacuum: () => ipcRenderer.invoke('assets:vacuum')
   },
+  database: {
+    getStats: () => ipcRenderer.invoke('database:getStats'),
+    optimize: () => ipcRenderer.invoke('database:optimize')
+  },
   events: {
     onBookmarksUpdated: (callback: () => void) => {
       const listener = () => callback();
