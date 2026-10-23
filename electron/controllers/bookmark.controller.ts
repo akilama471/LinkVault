@@ -1,106 +1,55 @@
-import { ipcMain } from 'electron';
 import { bookmarkService } from '../services/bookmark.service';
 import { UpdateBookmarkDTO } from '../models/bookmark.model';
-import { passwordService } from '../services/password.service';
+import { registerSecureHandler } from '../utils/ipc.guard';
 
 export function registerBookmarkController() {
-  ipcMain.handle('bookmarks:add', async (event, url: string) => {
-    try {
-      passwordService.checkAuth();
-      const bookmark = await bookmarkService.addBookmark(url);
-      return { success: true, data: bookmark };
-    } catch (error: any) {
-      return { success: false, error: error.message };
-    }
+  registerSecureHandler('bookmarks:add', async (_event, url: string) => {
+    const bookmark = await bookmarkService.addBookmark(url);
+    return { success: true, data: bookmark };
   });
 
-  ipcMain.handle('bookmarks:getAll', async () => {
-    try {
-      passwordService.checkAuth();
-      const bookmarks = bookmarkService.getAllBookmarks();
-      return { success: true, data: bookmarks };
-    } catch (error: any) {
-      return { success: false, error: error.message };
-    }
+  registerSecureHandler('bookmarks:getAll', () => {
+    const bookmarks = bookmarkService.getAllBookmarks();
+    return { success: true, data: bookmarks };
   });
 
-  ipcMain.handle('bookmarks:search', async (event, query: string) => {
-    try {
-      passwordService.checkAuth();
-      const bookmarks = bookmarkService.searchBookmarks(query);
-      return { success: true, data: bookmarks };
-    } catch (error: any) {
-      return { success: false, error: error.message };
-    }
+  registerSecureHandler('bookmarks:search', (_event, query: string) => {
+    const bookmarks = bookmarkService.searchBookmarks(query);
+    return { success: true, data: bookmarks };
   });
 
-  ipcMain.handle('bookmarks:update', async (event, id: number, data: UpdateBookmarkDTO) => {
-    try {
-      passwordService.checkAuth();
-      const bookmark = bookmarkService.updateBookmark(id, data);
-      return { success: true, data: bookmark };
-    } catch (error: any) {
-      return { success: false, error: error.message };
-    }
+  registerSecureHandler('bookmarks:update', (_event, id: number, data: UpdateBookmarkDTO) => {
+    const bookmark = bookmarkService.updateBookmark(id, data);
+    return { success: true, data: bookmark };
   });
 
-  ipcMain.handle('bookmarks:refetch', async (event, id: number) => {
-    try {
-      passwordService.checkAuth();
-      const bookmark = await bookmarkService.refetchBookmark(id);
-      return { success: true, data: bookmark };
-    } catch (error: any) {
-      return { success: false, error: error.message };
-    }
+  registerSecureHandler('bookmarks:refetch', async (_event, id: number) => {
+    const bookmark = await bookmarkService.refetchBookmark(id);
+    return { success: true, data: bookmark };
   });
 
-  ipcMain.handle('bookmarks:delete', async (event, id: number) => {
-    try {
-      passwordService.checkAuth();
-      bookmarkService.deleteBookmark(id);
-      return { success: true };
-    } catch (error: any) {
-      return { success: false, error: error.message };
-    }
+  registerSecureHandler('bookmarks:delete', (_event, id: number) => {
+    bookmarkService.deleteBookmark(id);
+    return { success: true };
   });
 
-  ipcMain.handle('bookmarks:getDeleted', async () => {
-    try {
-      passwordService.checkAuth();
-      const bookmarks = bookmarkService.getDeletedBookmarks();
-      return { success: true, data: bookmarks };
-    } catch (error: any) {
-      return { success: false, error: error.message };
-    }
+  registerSecureHandler('bookmarks:getDeleted', () => {
+    const bookmarks = bookmarkService.getDeletedBookmarks();
+    return { success: true, data: bookmarks };
   });
 
-  ipcMain.handle('bookmarks:restore', async (event, id: number) => {
-    try {
-      passwordService.checkAuth();
-      const bookmark = bookmarkService.restoreBookmark(id);
-      return { success: true, data: bookmark };
-    } catch (error: any) {
-      return { success: false, error: error.message };
-    }
+  registerSecureHandler('bookmarks:restore', (_event, id: number) => {
+    const bookmark = bookmarkService.restoreBookmark(id);
+    return { success: true, data: bookmark };
   });
 
-  ipcMain.handle('bookmarks:permanentDelete', async (event, id: number) => {
-    try {
-      passwordService.checkAuth();
-      await bookmarkService.permanentDeleteBookmark(id);
-      return { success: true };
-    } catch (error: any) {
-      return { success: false, error: error.message };
-    }
+  registerSecureHandler('bookmarks:permanentDelete', async (_event, id: number) => {
+    await bookmarkService.permanentDeleteBookmark(id);
+    return { success: true };
   });
 
-  ipcMain.handle('bookmarks:emptyTrash', async () => {
-    try {
-      passwordService.checkAuth();
-      const count = await bookmarkService.emptyRecycleBin();
-      return { success: true, count };
-    } catch (error: any) {
-      return { success: false, error: error.message };
-    }
+  registerSecureHandler('bookmarks:emptyTrash', async () => {
+    const count = await bookmarkService.emptyRecycleBin();
+    return { success: true, count };
   });
 }

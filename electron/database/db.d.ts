@@ -3,9 +3,13 @@ import { DatabaseStorageStats, DatabaseOptimizationResult } from '../../src/type
 export declare class DbManager {
     private db;
     private readonly dbPath;
+    private readonly encryptedDbPath;
     private checkpointTimer;
     constructor();
     private init;
+    openDatabase(): void;
+    isDatabaseOpen(): boolean;
+    isEncryptedAtRest(): boolean;
     getDb(): DatabaseType;
     private runMigrations;
     /**
@@ -45,5 +49,17 @@ export declare class DbManager {
      * Performs clean shutdown checkpoint and optimization before closing database connection.
      */
     close(): void;
+    /**
+     * Decrypts the database from ciphertext at rest and initializes SQLite.
+     */
+    unlockAndOpen(key: Buffer): Promise<void>;
+    /**
+     * Checkpoints WAL, closes connection, encrypts the database with AES-256-GCM, and securely shreds plaintext files.
+     */
+    lockAndEncrypt(key: Buffer): Promise<void>;
+    /**
+     * Removes encrypted database file when master password protection is permanently removed.
+     */
+    removeEncryptionAtRest(): void;
 }
 export declare const dbManager: DbManager;

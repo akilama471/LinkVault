@@ -5,35 +5,58 @@ import path from 'node:path';
 import { app } from 'electron';
 import fs from 'node:fs';
 import { DatabaseStorageStats, DatabaseOptimizationResult } from '../../src/types/models';
+import { encryptionService } from '../services/encryption.service';
 
 export class DbManager {
   private db: DatabaseType | null = null;
   private readonly dbPath: string;
+  private readonly encryptedDbPath: string;
   private checkpointTimer: NodeJS.Timeout | null = null;
 
   constructor() {
     const userDataPath = app.getPath('userData');
     this.dbPath = path.join(userDataPath, 'bookmark_manager.sqlite');
+    this.encryptedDbPath = path.join(userDataPath, 'bookmark_manager.sqlite.enc');
     this.init();
   }
 
   private init() {
     try {
-      this.db = new Database(this.dbPath);
-      this.db!.pragma('journal_mode = WAL');
-      this.db!.pragma('foreign_keys = ON');
-      console.log(`Database initialized at: ${this.dbPath}`);
-      this.runMigrations();
-      this.startPeriodicCheckpoint();
+      // If the database is encrypted at rest and not yet unlocked
+      if (fs.existsSync(this.encryptedDbPath) && !fs.existsSync(this.dbPath)) {
+        console.log(`[DbManager] Encrypted vault detected at: ${this.encryptedDbPath}. Awaiting master password unlock.`);
+        this.db = null;
+        return;
+      }
+
+      this.openDatabase();
     } catch (error) {
       console.error('Failed to initialize database:', error);
       throw error;
     }
   }
 
+  public openDatabase(): void {
+    if (this.db) return;
+    this.db = new Database(this.dbPath);
+    this.db!.pragma('journal_mode = WAL');
+    this.db!.pragma('foreign_keys = ON');
+    console.log(`Database initialized at: ${this.dbPath}`);
+    this.runMigrations();
+    this.startPeriodicCheckpoint();
+  }
+
+  public isDatabaseOpen(): boolean {
+    return this.db !== null;
+  }
+
+  public isEncryptedAtRest(): boolean {
+    return fs.existsSync(this.encryptedDbPath);
+  }
+
   public getDb(): DatabaseType {
     if (!this.db) {
-      throw new Error('Database is not initialized');
+      throw new Error('Database is locked or not initialized. Master password authentication required.');
     }
     return this.db;
   }
@@ -358,6 +381,21 @@ export class DbManager {
    * Gathers detailed storage footprint metrics for the main sqlite database and WAL files.
    */
   public getStorageStats(): DatabaseStorageStats {
+    if (!this.db && fs.existsSync(this.encryptedDbPath)) {
+      const encryptedSize = fs.existsSync(this.encryptedDbPath) ? fs.statSync(this.encryptedDbPath).size : 0;
+      return {
+        dbSizeBytes: encryptedSize,
+        walSizeBytes: 0,
+        shmSizeBytes: 0,
+        totalSizeBytes: encryptedSize,
+        pageCount: 0,
+        pageSize: 4096,
+        freelistCount: 0,
+        freelistSizeBytes: 0,
+        journalMode: 'encrypted-at-rest'
+      };
+    }
+
     const db = this.getDb();
     const walPath = `${this.dbPath}-wal`;
     const shmPath = `${this.dbPath}-shm`;
@@ -476,6 +514,63 @@ export class DbManager {
       console.log('[DbManager] Database checkpointed and closed cleanly.');
     } catch (err) {
       console.error('[DbManager] Error while closing database:', err);
+    }
+  }
+
+  /**
+   * Decrypts the database from ciphertext at rest and initializes SQLite.
+   */
+  public async unlockAndOpen(key: Buffer): Promise<void> {
+    if (this.db) return;
+
+    if (fs.existsSync(this.encryptedDbPath)) {
+      console.log(`[DbManager] Decrypting database at rest (${this.encryptedDbPath}) with derived master key...`);
+      await encryptionService.decryptFile(this.encryptedDbPath, this.dbPath, key);
+    }
+
+    this.openDatabase();
+  }
+
+  /**
+   * Checkpoints WAL, closes connection, encrypts the database with AES-256-GCM, and securely shreds plaintext files.
+   */
+  public async lockAndEncrypt(key: Buffer): Promise<void> {
+    this.stopPeriodicCheckpoint();
+    if (this.db) {
+      try {
+        this.checkpoint('TRUNCATE');
+        this.optimize();
+        this.db.close();
+      } catch (e) {
+        console.warn('[DbManager] Warning during lock checkpoint:', e);
+      }
+      this.db = null;
+    }
+
+    if (fs.existsSync(this.dbPath)) {
+      console.log(`[DbManager] Encrypting database at rest into ${this.encryptedDbPath}...`);
+      await encryptionService.encryptFile(this.dbPath, this.encryptedDbPath, key);
+
+      // Securely shred unencrypted database and WAL files
+      await encryptionService.secureShredFile(this.dbPath);
+      const walPath = `${this.dbPath}-wal`;
+      const shmPath = `${this.dbPath}-shm`;
+      if (fs.existsSync(walPath)) await encryptionService.secureShredFile(walPath);
+      if (fs.existsSync(shmPath)) await encryptionService.secureShredFile(shmPath);
+      console.log(`[DbManager] Plaintext database files shredded. Database secured at rest with AES-256-GCM.`);
+    }
+  }
+
+  /**
+   * Removes encrypted database file when master password protection is permanently removed.
+   */
+  public removeEncryptionAtRest(): void {
+    if (fs.existsSync(this.encryptedDbPath)) {
+      try {
+        fs.unlinkSync(this.encryptedDbPath);
+      } catch (err) {
+        console.warn('[DbManager] Failed to remove encrypted database file:', err);
+      }
     }
   }
 }

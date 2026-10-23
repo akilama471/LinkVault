@@ -1,40 +1,40 @@
-import { ipcMain } from 'electron';
 import { passwordService } from '../services/password.service';
+import { bookmarkService } from '../services/bookmark.service';
+import { collectionService } from '../services/collection.service';
+import { enrichmentService } from '../services/enrichment.service';
+import { registerSecureHandler } from '../utils/ipc.guard';
 
 export function registerAuthController() {
-  ipcMain.handle('auth:hasPassword', () => {
+  registerSecureHandler('auth:hasPassword', () => {
     return passwordService.hasPasswordSet();
-  });
+  }, { requiresAuth: false });
 
-  ipcMain.handle('auth:setPassword', async (event, password: string) => {
-    try {
-      await passwordService.setPassword(password);
-      return { success: true };
-    } catch (error: any) {
-      return { success: false, error: error.message };
-    }
-  });
-
-  ipcMain.handle('auth:removePassword', async () => {
-    try {
-      await passwordService.removePassword();
-      return { success: true };
-    } catch (error: any) {
-      return { success: false, error: error.message };
-    }
-  });
-
-  ipcMain.handle('auth:verifyPassword', async (event, password: string) => {
-    try {
-      const success = await passwordService.verifyPassword(password);
-      return { success };
-    } catch (error: any) {
-      return { success: false, error: error.message };
-    }
-  });
-
-  ipcMain.handle('auth:lock', () => {
-    passwordService.lock();
+  registerSecureHandler('auth:setPassword', async (_event, password: string) => {
+    await passwordService.setPassword(password);
     return { success: true };
-  });
+  }, { requiresAuth: false });
+
+  registerSecureHandler('auth:removePassword', async () => {
+    await passwordService.removePassword();
+    return { success: true };
+  }, { requiresAuth: true });
+
+  registerSecureHandler('auth:verifyPassword', async (_event, password: string) => {
+    const success = await passwordService.verifyPassword(password);
+    if (success) {
+      try {
+        bookmarkService.purgeExpiredBookmarks();
+        collectionService.purgeExpiredCollections();
+        enrichmentService.startEnrichmentJob();
+      } catch (err) {
+        console.warn('Failed to launch deferred background jobs on login:', err);
+      }
+    }
+    return { success };
+  }, { requiresAuth: false });
+
+  registerSecureHandler('auth:lock', async () => {
+    await passwordService.lock();
+    return { success: true };
+  }, { requiresAuth: false });
 }

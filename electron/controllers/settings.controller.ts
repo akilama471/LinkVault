@@ -1,45 +1,24 @@
-import { ipcMain } from 'electron';
 import { settingsService } from '../services/settings.service';
-import { passwordService } from '../services/password.service';
+import { registerSecureHandler } from '../utils/ipc.guard';
 
 export function registerSettingsController() {
-  ipcMain.handle('settings:getShowHiddenBookmarks', async () => {
-    try {
-      passwordService.checkAuth();
-      const show = settingsService.getShowHiddenBookmarks();
-      return { success: true, data: show };
-    } catch (error: any) {
-      return { success: false, error: error.message };
-    }
+  registerSecureHandler('settings:getShowHiddenBookmarks', () => {
+    const show = settingsService.getShowHiddenBookmarks();
+    return { success: true, data: show };
   });
 
-  ipcMain.handle('settings:setShowHiddenBookmarks', async (_event, show: boolean) => {
-    try {
-      passwordService.checkAuth();
-      settingsService.setShowHiddenBookmarks(show);
-      return { success: true };
-    } catch (error: any) {
-      return { success: false, error: error.message };
-    }
+  registerSecureHandler('settings:setShowHiddenBookmarks', (_event, show: boolean) => {
+    settingsService.setShowHiddenBookmarks(show);
+    return { success: true };
   });
 
-  ipcMain.handle('settings:getSpaFallback', async () => {
-    try {
-      passwordService.checkAuth();
-      const enabled = settingsService.getSpaFallbackEnabled();
-      return { success: true, data: enabled };
-    } catch (error: any) {
-      return { success: false, error: error.message };
-    }
+  registerSecureHandler('settings:getSpaFallback', () => {
+    const enabled = settingsService.getSpaFallbackEnabled();
+    return { success: true, data: enabled };
   });
 
-  ipcMain.handle('settings:setSpaFallback', async (_event, enabled: boolean) => {
-    try {
-      passwordService.checkAuth();
-      settingsService.setSpaFallbackEnabled(enabled);
-      return { success: true };
-    } catch (error: any) {
-      return { success: false, error: error.message };
-    }
+  registerSecureHandler('settings:setSpaFallback', (_event, enabled: boolean) => {
+    settingsService.setSpaFallbackEnabled(enabled);
+    return { success: true };
   });
 }

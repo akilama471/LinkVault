@@ -1,79 +1,41 @@
-import { ipcMain } from 'electron';
 import { 
   browserLauncherService, 
   BrowserOption, 
   SupportedBrowserName 
 } from '../services/browser-launcher.service';
-import { passwordService } from '../services/password.service';
+import { registerSecureHandler } from '../utils/ipc.guard';
 
 export function registerBrowserLauncherController() {
-  ipcMain.handle('settings:getDefaultBrowser', async () => {
-    try {
-      passwordService.checkAuth();
-      const defaultBrowser = browserLauncherService.getDefaultBrowser();
-      return { success: true, data: defaultBrowser };
-    } catch (error: any) {
-      return { success: false, error: error.message };
-    }
+  registerSecureHandler('settings:getDefaultBrowser', () => {
+    const defaultBrowser = browserLauncherService.getDefaultBrowser();
+    return { success: true, data: defaultBrowser };
   });
 
-  ipcMain.handle('settings:setDefaultBrowser', async (_event, browser: BrowserOption) => {
-    try {
-      passwordService.checkAuth();
-      browserLauncherService.setDefaultBrowser(browser);
-      return { success: true };
-    } catch (error: any) {
-      return { success: false, error: error.message };
-    }
+  registerSecureHandler('settings:setDefaultBrowser', (_event, browser: BrowserOption) => {
+    browserLauncherService.setDefaultBrowser(browser);
+    return { success: true };
   });
 
-  ipcMain.handle('settings:getBrowserStatuses', async () => {
-    try {
-      passwordService.checkAuth();
-      const statuses = browserLauncherService.getAllBrowserStatuses();
-      return { success: true, data: statuses };
-    } catch (error: any) {
-      return { success: false, error: error.message };
-    }
+  registerSecureHandler('settings:getBrowserStatuses', () => {
+    const statuses = browserLauncherService.getAllBrowserStatuses();
+    return { success: true, data: statuses };
   });
 
-  ipcMain.handle('settings:setCustomBrowserPath', async (_event, browser: SupportedBrowserName, customPath: string) => {
-    try {
-      passwordService.checkAuth();
-      browserLauncherService.setCustomPath(browser, customPath);
-      return { success: true };
-    } catch (error: any) {
-      return { success: false, error: error.message };
-    }
+  registerSecureHandler('settings:setCustomBrowserPath', (_event, browser: SupportedBrowserName, customPath: string) => {
+    browserLauncherService.setCustomPath(browser, customPath);
+    return { success: true };
   });
 
-  ipcMain.handle('settings:clearCustomBrowserPath', async (_event, browser: SupportedBrowserName) => {
-    try {
-      passwordService.checkAuth();
-      browserLauncherService.clearCustomPath(browser);
-      return { success: true };
-    } catch (error: any) {
-      return { success: false, error: error.message };
-    }
+  registerSecureHandler('settings:clearCustomBrowserPath', (_event, browser: SupportedBrowserName) => {
+    browserLauncherService.clearCustomPath(browser);
+    return { success: true };
   });
 
-  ipcMain.handle('settings:browseBrowserExecutable', async (_event, browser: SupportedBrowserName) => {
-    try {
-      passwordService.checkAuth();
-      const result = await browserLauncherService.browseForBrowser(browser);
-      return result;
-    } catch (error: any) {
-      return { success: false, error: error.message };
-    }
+  registerSecureHandler('settings:browseBrowserExecutable', async (_event, browser: SupportedBrowserName) => {
+    return await browserLauncherService.browseForBrowser(browser);
   });
 
-  ipcMain.handle('browser:openUrl', async (_event, url: string, browserName?: BrowserOption) => {
-    try {
-      passwordService.checkAuth();
-      const result = await browserLauncherService.openUrl(url, browserName);
-      return result;
-    } catch (error: any) {
-      return { success: false, error: error.message };
-    }
+  registerSecureHandler('browser:openUrl', async (_event, url: string, browserName?: BrowserOption) => {
+    return await browserLauncherService.openUrl(url, browserName);
   });
 }

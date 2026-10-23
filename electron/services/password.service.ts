@@ -1,30 +1,56 @@
 import crypto from 'node:crypto';
+import fs from 'node:fs';
+import path from 'node:path';
+import { app } from 'electron';
 import { promisify } from 'node:util';
 import { dbManager } from '../database/db';
+import { encryptionService, VaultMetadata } from './encryption.service';
 
 export class PasswordService {
-  private readonly ITERATIONS = 100000;
-  private readonly KEY_LEN = 64;
-  private readonly DIGEST = 'sha512';
+  private readonly vaultPath: string;
+  private currentKey: Buffer | null = null;
   private isAuthenticated = false;
 
-  private getStoredHash(): string | null {
-    const db = dbManager.getDb();
-    const row = db.prepare("SELECT value FROM application_settings WHERE key = 'password_hash'").get() as { value: string } | undefined;
-    return row ? row.value : null;
+  constructor() {
+    const userDataPath = app.getPath('userData');
+    this.vaultPath = path.join(userDataPath, 'vault.meta.json');
   }
 
-  private setStoredHash(hash: string): void {
-    const db = dbManager.getDb();
-    db.prepare(`
-      INSERT INTO application_settings (key, value) 
-      VALUES ('password_hash', ?) 
-      ON CONFLICT(key) DO UPDATE SET value = excluded.value
-    `).run(hash);
+  private getVaultMeta(): VaultMetadata | null {
+    try {
+      if (fs.existsSync(this.vaultPath)) {
+        const content = fs.readFileSync(this.vaultPath, 'utf8');
+        return JSON.parse(content) as VaultMetadata;
+      }
+    } catch (err) {
+      console.error('[PasswordService] Failed to read vault metadata:', err);
+    }
+    return null;
+  }
+
+  private getLegacyStoredHash(): string | null {
+    if (!dbManager.isDatabaseOpen()) return null;
+    try {
+      const db = dbManager.getDb();
+      const row = db.prepare("SELECT value FROM application_settings WHERE key = 'password_hash'").get() as { value: string } | undefined;
+      return row ? row.value : null;
+    } catch {
+      return null;
+    }
   }
 
   public hasPasswordSet(): boolean {
-    return this.getStoredHash() !== null;
+    if (fs.existsSync(this.vaultPath) || dbManager.isEncryptedAtRest()) {
+      return true;
+    }
+    return this.getLegacyStoredHash() !== null;
+  }
+
+  public isAuth(): boolean {
+    if (!this.hasPasswordSet()) {
+      return true;
+    }
+    return this.isAuthenticated;
   }
 
   public async setPassword(password: string): Promise<boolean> {
@@ -32,13 +58,28 @@ export class PasswordService {
       throw new Error('Must be authenticated to change password');
     }
 
-    const salt = crypto.randomBytes(16).toString('hex');
-    const pbkdf2Async = promisify(crypto.pbkdf2);
-    const hashBuffer = await pbkdf2Async(password, salt, this.ITERATIONS, this.KEY_LEN, this.DIGEST);
-    const hash = hashBuffer.toString('hex');
-    const storedValue = `${salt}:${hash}`;
-    
-    this.setStoredHash(storedValue);
+    const salt = encryptionService.generateSalt();
+    const { key, verifierHash } = await encryptionService.deriveMasterKey(password, salt);
+
+    const vaultMeta: VaultMetadata = {
+      version: 1,
+      algorithm: 'aes-256-gcm',
+      iterations: 100000,
+      salt,
+      verifierHash,
+      encryptedAt: new Date().toISOString()
+    };
+
+    await fs.promises.writeFile(this.vaultPath, JSON.stringify(vaultMeta, null, 2), 'utf8');
+
+    // Remove legacy hash if present
+    if (dbManager.isDatabaseOpen()) {
+      try {
+        dbManager.getDb().prepare("DELETE FROM application_settings WHERE key = 'password_hash'").run();
+      } catch {}
+    }
+
+    this.currentKey = key;
     this.isAuthenticated = true; // Auto-authenticate after setting
     return true;
   }
@@ -48,33 +89,85 @@ export class PasswordService {
       throw new Error('Must be authenticated to remove password');
     }
 
-    const db = dbManager.getDb();
-    db.prepare("DELETE FROM application_settings WHERE key = 'password_hash'").run();
+    // Ensure database is unencrypted and open
+    if (dbManager.isEncryptedAtRest() && !dbManager.isDatabaseOpen() && this.currentKey) {
+      await dbManager.unlockAndOpen(this.currentKey);
+    }
+
+    dbManager.removeEncryptionAtRest();
+
+    if (fs.existsSync(this.vaultPath)) {
+      await fs.promises.unlink(this.vaultPath);
+    }
+
+    if (dbManager.isDatabaseOpen()) {
+      try {
+        dbManager.getDb().prepare("DELETE FROM application_settings WHERE key = 'password_hash'").run();
+      } catch {}
+    }
+
+    this.currentKey = null;
     this.isAuthenticated = true;
     return true;
   }
 
   public async verifyPassword(password: string): Promise<boolean> {
-    const storedHash = this.getStoredHash();
-    if (!storedHash) {
-      throw new Error('No password is set');
+    // 1. Check AES-GCM Vault Metadata
+    const vaultMeta = this.getVaultMeta();
+    if (vaultMeta) {
+      const { key, verifierHash } = await encryptionService.deriveMasterKey(password, vaultMeta.salt);
+      const isMatch = crypto.timingSafeEqual(
+        Buffer.from(vaultMeta.verifierHash, 'hex'),
+        Buffer.from(verifierHash, 'hex')
+      );
+
+      if (isMatch) {
+        this.currentKey = key;
+        // Unlock encrypted SQLite database if locked at rest
+        if (!dbManager.isDatabaseOpen()) {
+          await dbManager.unlockAndOpen(key);
+        }
+        this.isAuthenticated = true;
+        return true;
+      }
+      return false;
     }
 
-    const [salt, hash] = storedHash.split(':');
-    const pbkdf2Async = promisify(crypto.pbkdf2);
-    const verifyHashBuffer = await pbkdf2Async(password, salt, this.ITERATIONS, this.KEY_LEN, this.DIGEST);
-    const verifyHash = verifyHashBuffer.toString('hex');
-    
-    if (crypto.timingSafeEqual(Buffer.from(hash, 'hex'), Buffer.from(verifyHash, 'hex'))) {
-      this.isAuthenticated = true;
-      return true;
+    // 2. Check Legacy PBKDF2 hash for seamless upgrade
+    const legacyHash = this.getLegacyStoredHash();
+    if (legacyHash) {
+      const [salt, hash] = legacyHash.split(':');
+      const pbkdf2Async = promisify(crypto.pbkdf2);
+      const verifyHashBuffer = await pbkdf2Async(password, salt, 100000, 64, 'sha512');
+      const verifyHash = verifyHashBuffer.toString('hex');
+
+      if (crypto.timingSafeEqual(Buffer.from(hash, 'hex'), Buffer.from(verifyHash, 'hex'))) {
+        // Upgrade legacy hash to modern AES-256-GCM vault metadata
+        await this.setPassword(password);
+        this.isAuthenticated = true;
+        return true;
+      }
+      return false;
     }
-    
-    return false;
+
+    throw new Error('No password is set');
   }
 
-  public lock(): void {
+  public async lock(): Promise<void> {
     this.isAuthenticated = false;
+    if (this.hasPasswordSet() && this.currentKey) {
+      await dbManager.lockAndEncrypt(this.currentKey);
+      this.currentKey = null;
+    }
+  }
+
+  public async shutdown(): Promise<void> {
+    if (this.hasPasswordSet() && this.currentKey) {
+      await dbManager.lockAndEncrypt(this.currentKey);
+      this.currentKey = null;
+    } else {
+      dbManager.close();
+    }
   }
 
   public checkAuth(): void {

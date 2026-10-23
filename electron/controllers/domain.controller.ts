@@ -1,46 +1,25 @@
-import { ipcMain } from 'electron';
 import { domainModel } from '../models/domain.model';
 import { domainService } from '../services/domain.service';
-import { passwordService } from '../services/password.service';
+import { registerSecureHandler } from '../utils/ipc.guard';
 
 export function registerDomainController() {
-  ipcMain.handle('domains:getAll', async () => {
-    try {
-      passwordService.checkAuth();
-      const domains = domainModel.getAll();
-      return { success: true, data: domains };
-    } catch (error: any) {
-      return { success: false, error: error.message };
-    }
+  registerSecureHandler('domains:getAll', () => {
+    const domains = domainModel.getAll();
+    return { success: true, data: domains };
   });
 
-  ipcMain.handle('domains:refetch', async (event, id: number) => {
-    try {
-      passwordService.checkAuth();
-      const domain = await domainService.refetchDomain(id);
-      return { success: true, data: domain };
-    } catch (error: any) {
-      return { success: false, error: error.message };
-    }
+  registerSecureHandler('domains:refetch', async (_event, id: number) => {
+    const domain = await domainService.refetchDomain(id);
+    return { success: true, data: domain };
   });
 
-  ipcMain.handle('domains:rename', async (event, id: number, newName: string) => {
-    try {
-      passwordService.checkAuth();
-      const domain = domainService.renameDomain(id, newName);
-      return { success: true, data: domain };
-    } catch (error: any) {
-      return { success: false, error: error.message };
-    }
+  registerSecureHandler('domains:rename', (_event, id: number, newName: string) => {
+    const domain = domainService.renameDomain(id, newName);
+    return { success: true, data: domain };
   });
 
-  ipcMain.handle('domains:delete', async (event, id: number, deleteBookmarks: boolean) => {
-    try {
-      passwordService.checkAuth();
-      await domainService.deleteDomain(id, deleteBookmarks);
-      return { success: true };
-    } catch (error: any) {
-      return { success: false, error: error.message };
-    }
+  registerSecureHandler('domains:delete', async (_event, id: number, deleteBookmarks: boolean) => {
+    await domainService.deleteDomain(id, deleteBookmarks);
+    return { success: true };
   });
 }

@@ -1,125 +1,64 @@
-import { ipcMain } from 'electron';
 import { collectionService } from '../services/collection.service';
-import { passwordService } from '../services/password.service';
+import { registerSecureHandler } from '../utils/ipc.guard';
 
 export function registerCollectionController() {
-  ipcMain.handle('collections:getAll', async () => {
-    try {
-      passwordService.checkAuth();
-      const cols = collectionService.getAllCollections();
-      return { success: true, data: cols };
-    } catch (error: any) {
-      return { success: false, error: error.message };
-    }
+  registerSecureHandler('collections:getAll', () => {
+    const cols = collectionService.getAllCollections();
+    return { success: true, data: cols };
   });
 
-  ipcMain.handle('collections:getDeleted', async () => {
-    try {
-      passwordService.checkAuth();
-      const cols = collectionService.getDeletedCollections();
-      return { success: true, data: cols };
-    } catch (error: any) {
-      return { success: false, error: error.message };
-    }
+  registerSecureHandler('collections:getDeleted', () => {
+    const cols = collectionService.getDeletedCollections();
+    return { success: true, data: cols };
   });
 
-  ipcMain.handle('collections:create', async (event, name: string, description: string | null) => {
-    try {
-      passwordService.checkAuth();
-      const col = collectionService.getOrCreateCollection(name, description);
-      return { success: true, data: col };
-    } catch (error: any) {
-      return { success: false, error: error.message };
-    }
+  registerSecureHandler('collections:create', (_event, name: string, description: string | null) => {
+    const col = collectionService.getOrCreateCollection(name, description);
+    return { success: true, data: col };
   });
 
-  ipcMain.handle('collections:rename', async (event, id: number, newName: string, description: string | null) => {
-    try {
-      passwordService.checkAuth();
-      const col = collectionService.renameCollection(id, newName, description);
-      return { success: true, data: col };
-    } catch (error: any) {
-      return { success: false, error: error.message };
-    }
+  registerSecureHandler('collections:rename', (_event, id: number, newName: string, description: string | null) => {
+    const col = collectionService.renameCollection(id, newName, description);
+    return { success: true, data: col };
   });
 
-  ipcMain.handle('collections:refetch', async (event, id: number) => {
-    try {
-      passwordService.checkAuth();
-      const col = await collectionService.refetchCollection(id);
-      return { success: true, data: col };
-    } catch (error: any) {
-      return { success: false, error: error.message };
-    }
+  registerSecureHandler('collections:refetch', async (_event, id: number) => {
+    const col = await collectionService.refetchCollection(id);
+    return { success: true, data: col };
   });
 
-  ipcMain.handle('collections:delete', async (event, id: number, deleteBookmarks = false) => {
-    try {
-      passwordService.checkAuth();
-      collectionService.deleteCollection(id, Boolean(deleteBookmarks));
-      return { success: true };
-    } catch (error: any) {
-      return { success: false, error: error.message };
-    }
+  registerSecureHandler('collections:delete', (_event, id: number, deleteBookmarks = false) => {
+    collectionService.deleteCollection(id, Boolean(deleteBookmarks));
+    return { success: true };
   });
 
-  ipcMain.handle('collections:restore', async (event, id: number) => {
-    try {
-      passwordService.checkAuth();
-      const col = collectionService.restoreCollection(id);
-      return { success: true, data: col };
-    } catch (error: any) {
-      return { success: false, error: error.message };
-    }
+  registerSecureHandler('collections:restore', (_event, id: number) => {
+    const col = collectionService.restoreCollection(id);
+    return { success: true, data: col };
   });
 
-  ipcMain.handle('collections:permanentDelete', async (event, id: number) => {
-    try {
-      passwordService.checkAuth();
-      await collectionService.permanentDeleteCollection(id);
-      return { success: true };
-    } catch (error: any) {
-      return { success: false, error: error.message };
-    }
+  registerSecureHandler('collections:permanentDelete', async (_event, id: number) => {
+    await collectionService.permanentDeleteCollection(id);
+    return { success: true };
   });
 
-  ipcMain.handle('collections:emptyTrash', async () => {
-    try {
-      passwordService.checkAuth();
-      const count = collectionService.emptyRecycleBin();
-      return { success: true, count };
-    } catch (error: any) {
-      return { success: false, error: error.message };
-    }
+  registerSecureHandler('collections:emptyTrash', () => {
+    const count = collectionService.emptyRecycleBin();
+    return { success: true, count };
   });
 
-  ipcMain.handle('collections:getForBookmark', async (event, bookmarkId: number) => {
-    try {
-      passwordService.checkAuth();
-      const cols = collectionService.getCollectionsForBookmark(bookmarkId);
-      return { success: true, data: cols };
-    } catch (error: any) {
-      return { success: false, error: error.message };
-    }
+  registerSecureHandler('collections:getForBookmark', (_event, bookmarkId: number) => {
+    const cols = collectionService.getCollectionsForBookmark(bookmarkId);
+    return { success: true, data: cols };
   });
 
-  ipcMain.handle('collections:setForBookmark', async (event, bookmarkId: number, colNames: string[]) => {
-    try {
-      passwordService.checkAuth();
-      const cols = collectionService.setCollectionsForBookmark(bookmarkId, colNames);
-      return { success: true, data: cols };
-    } catch (error: any) {
-      return { success: false, error: error.message };
-    }
+  registerSecureHandler('collections:setForBookmark', (_event, bookmarkId: number, colNames: string[]) => {
+    const cols = collectionService.setCollectionsForBookmark(bookmarkId, colNames);
+    return { success: true, data: cols };
   });
 
-  ipcMain.handle('collections:getBookmarkIds', async (event, collectionId: number) => {
-    try {
-      passwordService.checkAuth();
-      const ids = collectionService.getBookmarkIdsForCollection(collectionId);
-      return { success: true, data: ids };
-    } catch (error: any) {
-      return { success: false, error: error.message };
-    }
+  registerSecureHandler('collections:getBookmarkIds', (_event, collectionId: number) => {
+    const ids = collectionService.getBookmarkIdsForCollection(collectionId);
+    return { success: true, data: ids };
   });
 }

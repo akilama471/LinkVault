@@ -18,6 +18,7 @@ import { browserLauncherService } from './services/browser-launcher.service';
 import { bookmarkService } from './services/bookmark.service';
 import { collectionService } from './services/collection.service';
 import { dbManager } from './database/db';
+import { passwordService } from './services/password.service';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -94,11 +95,11 @@ app.on('window-all-closed', () => {
   }
 });
 
-app.on('before-quit', () => {
+app.on('before-quit', async () => {
   try {
-    dbManager.close();
+    await passwordService.shutdown();
   } catch (error) {
-    console.error('Error during shutdown database checkpoint:', error);
+    console.error('Error during shutdown database encryption / checkpoint:', error);
   }
 });
 
@@ -121,15 +122,22 @@ app.whenReady().then(() => {
     });
   });
 
-  // Initialize Database
+  // Initialize Database if not encrypted at rest
   try {
-    dbManager.getDb();
+    if (passwordService.isAuth()) {
+      dbManager.getDb();
+    }
   } catch (error) {
-    console.error('Failed to initialize database on startup:', error);
+    console.log('[Main] Database awaits master password unlock on startup');
   }
 
   // Register custom protocol for local assets
   protocol.handle('asset', async (request) => {
+    // Block unauthorized asset access if master password protection is active
+    if (passwordService.hasPasswordSet() && !passwordService.isAuth()) {
+      return new Response(null, { status: 401 });
+    }
+
     // request.url is something like asset://thumb_abcd123.webp
     const urlFilename = request.url.slice('asset://'.length);
     // Use path.basename to prevent path traversal
@@ -170,18 +178,27 @@ app.whenReady().then(() => {
   registerAssetController();
   registerDatabaseController();
   
-  // Start background jobs
-  bookmarkService.purgeExpiredBookmarks();
-  collectionService.purgeExpiredCollections();
-  setInterval(() => {
+  // Start background jobs only if authenticated
+  if (passwordService.isAuth()) {
     try {
       bookmarkService.purgeExpiredBookmarks();
       collectionService.purgeExpiredCollections();
+      enrichmentService.startEnrichmentJob();
+    } catch (e) {
+      console.warn('Initial background jobs deferred until unlock:', e);
+    }
+  }
+
+  setInterval(() => {
+    try {
+      if (passwordService.isAuth()) {
+        bookmarkService.purgeExpiredBookmarks();
+        collectionService.purgeExpiredCollections();
+      }
     } catch (e) {
       console.error('Failed to purge expired Recycle Bin items:', e);
     }
   }, 60 * 60 * 1000);
-  enrichmentService.startEnrichmentJob();
   
   createWindow();
 });

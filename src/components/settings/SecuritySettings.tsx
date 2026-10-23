@@ -83,10 +83,13 @@ export const SecuritySettings: React.FC<SecuritySettingsProps> = ({
       </div>
 
       {hasPassword && (
-        <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg flex items-center justify-between text-green-800">
-          <div className="flex items-center gap-3">
-            <Check className="w-5 h-5 text-green-600 shrink-0" />
-            <p className="text-sm font-medium">Your application is currently protected with a password/PIN.</p>
+        <div className="mb-6 p-4 bg-emerald-50 border border-emerald-200 rounded-xl flex items-start gap-3 text-emerald-900">
+          <Check className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
+          <div>
+            <p className="text-sm font-semibold">Master Password & AES-256-GCM Vault Protection Active</p>
+            <p className="text-xs text-emerald-700 mt-1 leading-relaxed">
+              Your bookmarks database is encrypted at rest using authenticated AES-256-GCM. When the app is locked or exited, plaintext files are securely shredded, and all IPC mutation channels require authentication.
+            </p>
           </div>
         </div>
       )}

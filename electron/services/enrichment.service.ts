@@ -3,7 +3,9 @@ import { metadataService, RateLimitError } from './metadata.service';
 import { domainService } from './domain.service';
 import { assetService } from './asset.service';
 import { dbManager } from '../database/db';
-import { webContents, ipcMain } from 'electron';
+import { webContents } from 'electron';
+import { passwordService } from './password.service';
+import { registerSecureHandler } from '../utils/ipc.guard';
 
 export interface JobLog {
   id: number;
@@ -48,7 +50,7 @@ class EnrichmentService {
   }
 
   constructor() {
-    ipcMain.handle('jobs:getEnrichmentLogs', () => {
+    registerSecureHandler('jobs:getEnrichmentLogs', () => {
       return this.logs;
     });
   }
@@ -114,6 +116,9 @@ class EnrichmentService {
   }
 
   public async startEnrichmentJob() {
+    if (!passwordService.isAuth()) {
+      return;
+    }
     if (this.isProcessing) {
       this.hasPendingWork = true;
       return;
@@ -124,7 +129,7 @@ class EnrichmentService {
     let isFirstItem = true;
 
     try {
-      while (!this.shouldStop) {
+      while (!this.shouldStop && passwordService.isAuth()) {
         // Query up to 25 pending bookmarks to allow picking around rate-limited domains
         const pendingBookmarks = dbManager.getDb().prepare(`
           SELECT id, url, title FROM bookmarks 
