@@ -3,6 +3,7 @@ import { SecuritySettings } from './SecuritySettings';
 import { PrivacySettings } from './PrivacySettings';
 import { BrowserSettings } from './BrowserSettings';
 import { BrowserImportSettings } from './BrowserImportSettings';
+import { ScrapingSettings } from './ScrapingSettings';
 import { AssetStorageSettings } from './AssetStorageSettings';
 import { DatabaseSettings } from './DatabaseSettings';
 import { BackupSettings } from './BackupSettings';
@@ -38,6 +39,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       />
       <BrowserSettings />
       <BrowserImportSettings onRefreshAll={onRefreshAll} />
+      <ScrapingSettings />
       <AssetStorageSettings />
       <DatabaseSettings onRefreshAll={onRefreshAll} />
       <BackupSettings />

@@ -142,6 +142,26 @@ export class AssetService {
   }
 
   /**
+   * Saves a raw image buffer (e.g. from headless browser capturePage) as a WebP asset
+   */
+  public async saveImageBuffer(buffer: Buffer, prefix: string = 'prev'): Promise<string | null> {
+    try {
+      const filename = this.generateFilename(prefix, '.bdi');
+      const fullPath = path.join(this.assetsDir, filename);
+
+      await sharp(buffer)
+        .resize({ width: 1200, height: 1200, fit: 'inside', withoutEnlargement: true })
+        .webp({ quality: 80 })
+        .toFile(fullPath);
+
+      return filename;
+    } catch (error) {
+      console.warn('[AssetService] Failed to save image buffer as asset:', error);
+      return null;
+    }
+  }
+
+  /**
    * Resolves a relative asset filename to an absolute path for the renderer to display (via custom protocol or file://)
    */
   public getAssetAbsolutePath(filename: string): string {

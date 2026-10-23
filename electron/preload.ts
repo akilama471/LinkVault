@@ -72,7 +72,9 @@ export const electronAPI = {
   },
   settings: {
     getShowHiddenBookmarks: () => ipcRenderer.invoke('settings:getShowHiddenBookmarks'),
-    setShowHiddenBookmarks: (show: boolean) => ipcRenderer.invoke('settings:setShowHiddenBookmarks', show)
+    setShowHiddenBookmarks: (show: boolean) => ipcRenderer.invoke('settings:setShowHiddenBookmarks', show),
+    getSpaFallback: () => ipcRenderer.invoke('settings:getSpaFallback'),
+    setSpaFallback: (enabled: boolean) => ipcRenderer.invoke('settings:setSpaFallback', enabled)
   },
   assets: {
     getStorageStats: () => ipcRenderer.invoke('assets:getStorageStats'),
@@ -92,6 +94,11 @@ export const electronAPI = {
       const listener = (_e: any, show: boolean) => callback(show);
       ipcRenderer.on('settings:show-hidden-updated', listener);
       return () => ipcRenderer.removeListener('settings:show-hidden-updated', listener);
+    },
+    onSpaFallbackUpdated: (callback: (enabled: boolean) => void) => {
+      const listener = (_e: any, enabled: boolean) => callback(enabled);
+      ipcRenderer.on('settings:spa-fallback-updated', listener);
+      return () => ipcRenderer.removeListener('settings:spa-fallback-updated', listener);
     },
     onDomainsUpdated: (callback: () => void) => {
       const listener = () => callback();

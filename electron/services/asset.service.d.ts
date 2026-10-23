@@ -17,6 +17,10 @@ export declare class AssetService {
      */
     generateThumbnail(sourceFilename: string): Promise<string | null>;
     /**
+     * Saves a raw image buffer (e.g. from headless browser capturePage) as a WebP asset
+     */
+    saveImageBuffer(buffer: Buffer, prefix?: string): Promise<string | null>;
+    /**
      * Resolves a relative asset filename to an absolute path for the renderer to display (via custom protocol or file://)
      */
     getAssetAbsolutePath(filename: string): string;

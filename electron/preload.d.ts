@@ -73,6 +73,8 @@ export declare const electronAPI: {
     settings: {
         getShowHiddenBookmarks: () => Promise<any>;
         setShowHiddenBookmarks: (show: boolean) => Promise<any>;
+        getSpaFallback: () => Promise<any>;
+        setSpaFallback: (enabled: boolean) => Promise<any>;
     };
     assets: {
         getStorageStats: () => Promise<any>;
@@ -85,6 +87,7 @@ export declare const electronAPI: {
     events: {
         onBookmarksUpdated: (callback: () => void) => () => Electron.IpcRenderer;
         onShowHiddenUpdated: (callback: (show: boolean) => void) => () => Electron.IpcRenderer;
+        onSpaFallbackUpdated: (callback: (enabled: boolean) => void) => () => Electron.IpcRenderer;
         onDomainsUpdated: (callback: () => void) => () => Electron.IpcRenderer;
         onCollectionsUpdated: (callback: () => void) => () => Electron.IpcRenderer;
         onTagsUpdated: (callback: () => void) => () => Electron.IpcRenderer;

@@ -22,4 +22,24 @@ export function registerSettingsController() {
       return { success: false, error: error.message };
     }
   });
+
+  ipcMain.handle('settings:getSpaFallback', async () => {
+    try {
+      passwordService.checkAuth();
+      const enabled = settingsService.getSpaFallbackEnabled();
+      return { success: true, data: enabled };
+    } catch (error: any) {
+      return { success: false, error: error.message };
+    }
+  });
+
+  ipcMain.handle('settings:setSpaFallback', async (_event, enabled: boolean) => {
+    try {
+      passwordService.checkAuth();
+      settingsService.setSpaFallbackEnabled(enabled);
+      return { success: true };
+    } catch (error: any) {
+      return { success: false, error: error.message };
+    }
+  });
 }
