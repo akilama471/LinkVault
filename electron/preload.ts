@@ -121,6 +121,11 @@ export const electronAPI = {
       return () => ipcRenderer.removeListener('jobs:logs-updated', listener);
     }
   },
+  exchange: {
+    export: (options: any) => ipcRenderer.invoke('exchange:export', options),
+    importHtml: () => ipcRenderer.invoke('exchange:importHtml'),
+    getMetadata: () => ipcRenderer.invoke('exchange:getMetadata')
+  },
   jobs: {
     getEnrichmentLogs: () => ipcRenderer.invoke('jobs:getEnrichmentLogs')
   },

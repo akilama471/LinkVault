@@ -93,6 +93,11 @@ export declare const electronAPI: {
         onTagsUpdated: (callback: () => void) => () => Electron.IpcRenderer;
         onJobsUpdated: (callback: () => void) => () => Electron.IpcRenderer;
     };
+    exchange: {
+        export: (options: any) => Promise<any>;
+        importHtml: () => Promise<any>;
+        getMetadata: () => Promise<any>;
+    };
     jobs: {
         getEnrichmentLogs: () => Promise<any>;
     };

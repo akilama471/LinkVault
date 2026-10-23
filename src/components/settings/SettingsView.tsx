@@ -3,6 +3,7 @@ import { SecuritySettings } from './SecuritySettings';
 import { PrivacySettings } from './PrivacySettings';
 import { BrowserSettings } from './BrowserSettings';
 import { BrowserImportSettings } from './BrowserImportSettings';
+import { BookmarkExchangeSettings } from './BookmarkExchangeSettings';
 import { ScrapingSettings } from './ScrapingSettings';
 import { AssetStorageSettings } from './AssetStorageSettings';
 import { DatabaseSettings } from './DatabaseSettings';
@@ -39,6 +40,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       />
       <BrowserSettings />
       <BrowserImportSettings onRefreshAll={onRefreshAll} />
+      <BookmarkExchangeSettings onRefreshAll={onRefreshAll} />
       <ScrapingSettings />
       <AssetStorageSettings />
       <DatabaseSettings onRefreshAll={onRefreshAll} />

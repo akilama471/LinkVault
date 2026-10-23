@@ -80,3 +80,17 @@ export interface DatabaseOptimizationResult {
     };
     timestamp: string;
 }
+export interface ExportFilterOptions {
+    format: 'html' | 'json' | 'csv';
+    scope: 'all' | 'collection' | 'tag';
+    collectionId?: number;
+    tagId?: number;
+    includeRecycleBin?: boolean;
+}
+export interface HtmlImportResult {
+    imported: number;
+    duplicates: number;
+    total: number;
+    collectionsCreated: number;
+    tagsCreated: number;
+}
