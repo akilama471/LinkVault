@@ -78,8 +78,13 @@ export class DomainService {
       }
     }
 
+    const oldFavicon = domain.favicon_path;
+
     if (newFaviconPath) {
       domainModel.updateFavicon(domain.id, newFaviconPath);
+      if (oldFavicon && oldFavicon !== newFaviconPath) {
+        await assetService.deleteAssetIfUnreferenced(oldFavicon);
+      }
     } else {
       // Touch updated_at even if favicon didn't change so user knows it was checked
       db.prepare('UPDATE domains SET updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(domain.id);
@@ -120,15 +125,26 @@ export class DomainService {
   }
 
   /**
-   * Deletes a domain, either keeping or deleting its associated bookmarks.
+   * Deletes a domain, either keeping or deleting its associated bookmarks,
+   * and cleans up unreferenced assets from disk.
    */
-  public deleteDomain(id: number, deleteBookmarks: boolean): void {
+  public async deleteDomain(id: number, deleteBookmarks: boolean): Promise<void> {
     const domain = domainModel.findById(id);
     if (!domain) {
       throw new Error(`Domain with id ${id} not found`);
     }
 
     const db = dbManager.getDb();
+    const candidateAssets: (string | null | undefined)[] = [domain.favicon_path];
+
+    if (deleteBookmarks) {
+      const bookmarkAssets = db.prepare(`
+        SELECT thumbnail_path, preview_path FROM bookmarks WHERE domain_id = ?
+      `).all(id) as { thumbnail_path: string | null; preview_path: string | null }[];
+      for (const b of bookmarkAssets) {
+        candidateAssets.push(b.thumbnail_path, b.preview_path);
+      }
+    }
     
     const deleteTransaction = db.transaction(() => {
       if (deleteBookmarks) {
@@ -144,6 +160,10 @@ export class DomainService {
     });
 
     deleteTransaction();
+
+    if (candidateAssets.length > 0) {
+      await assetService.deleteAssetsIfUnreferenced(candidateAssets);
+    }
 
     webContents.getAllWebContents().forEach(wc => {
       wc.send('domains:updated');

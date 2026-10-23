@@ -74,6 +74,10 @@ export declare const electronAPI: {
         getShowHiddenBookmarks: () => Promise<any>;
         setShowHiddenBookmarks: (show: boolean) => Promise<any>;
     };
+    assets: {
+        getStorageStats: () => Promise<any>;
+        vacuum: () => Promise<any>;
+    };
     events: {
         onBookmarksUpdated: (callback: () => void) => () => Electron.IpcRenderer;
         onShowHiddenUpdated: (callback: (show: boolean) => void) => () => Electron.IpcRenderer;

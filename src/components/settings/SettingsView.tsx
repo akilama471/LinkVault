@@ -3,6 +3,7 @@ import { SecuritySettings } from './SecuritySettings';
 import { PrivacySettings } from './PrivacySettings';
 import { BrowserSettings } from './BrowserSettings';
 import { BrowserImportSettings } from './BrowserImportSettings';
+import { AssetStorageSettings } from './AssetStorageSettings';
 import { BackupSettings } from './BackupSettings';
 import { DangerZoneSettings } from './DangerZoneSettings';
 
@@ -36,6 +37,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       />
       <BrowserSettings />
       <BrowserImportSettings onRefreshAll={onRefreshAll} />
+      <AssetStorageSettings />
       <BackupSettings />
       <DangerZoneSettings onRefreshAll={onRefreshAll} />
     </div>

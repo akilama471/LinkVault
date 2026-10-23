@@ -6,6 +6,8 @@ import crypto from 'node:crypto';
 import sharp from 'sharp';
 import https from 'node:https';
 import http from 'node:http';
+import { dbManager } from '../database/db';
+import { AssetStorageStats, OrphanAssetInfo, VacuumResult } from '../../src/types/models';
 
 export class AssetService {
   private readonly assetsDir: string;
@@ -144,6 +146,220 @@ export class AssetService {
    */
   public getAssetAbsolutePath(filename: string): string {
     return path.join(this.assetsDir, filename);
+  }
+
+  /**
+   * Deletes a single asset file from userData/assets if it exists on disk.
+   */
+  public async deleteAsset(filename: string | null | undefined): Promise<boolean> {
+    if (!filename || filename === 'pending') return false;
+    const safeFilename = path.basename(filename);
+    const fullPath = path.join(this.assetsDir, safeFilename);
+
+    try {
+      await fs.unlink(fullPath);
+      return true;
+    } catch (err: any) {
+      if (err.code !== 'ENOENT') {
+        console.warn(`[AssetService] Failed to unlink asset ${safeFilename}:`, err);
+      }
+      return false;
+    }
+  }
+
+  /**
+   * Checks whether a given asset filename is actively referenced in the database
+   * by any bookmark (as thumbnail or preview) or by any domain (as favicon).
+   */
+  public isAssetReferenced(filename: string | null | undefined): boolean {
+    if (!filename || filename === 'pending') return false;
+    const safeFilename = path.basename(filename);
+    const db = dbManager.getDb();
+    const row = db.prepare(`
+      SELECT 1 FROM bookmarks WHERE thumbnail_path = ? OR preview_path = ?
+      UNION
+      SELECT 1 FROM domains WHERE favicon_path = ?
+      LIMIT 1
+    `).get(safeFilename, safeFilename, safeFilename);
+    return Boolean(row);
+  }
+
+  /**
+   * Retrieves a Set of all asset filenames referenced by any database record.
+   */
+  public getAllReferencedAssetFilenames(): Set<string> {
+    const db = dbManager.getDb();
+    const rows = db.prepare(`
+      SELECT thumbnail_path AS p FROM bookmarks WHERE thumbnail_path IS NOT NULL AND thumbnail_path != 'pending'
+      UNION
+      SELECT preview_path AS p FROM bookmarks WHERE preview_path IS NOT NULL AND preview_path != 'pending'
+      UNION
+      SELECT favicon_path AS p FROM domains WHERE favicon_path IS NOT NULL AND favicon_path != 'pending'
+    `).all() as { p: string }[];
+    return new Set(rows.map(r => path.basename(r.p)));
+  }
+
+  /**
+   * Deletes an asset file from disk if no active bookmark or domain references it.
+   */
+  public async deleteAssetIfUnreferenced(filename: string | null | undefined): Promise<boolean> {
+    if (!filename || filename === 'pending') return false;
+    const safeFilename = path.basename(filename);
+    if (!this.isAssetReferenced(safeFilename)) {
+      return this.deleteAsset(safeFilename);
+    }
+    return false;
+  }
+
+  /**
+   * Batch deletes multiple assets from disk if they are not referenced in the database.
+   */
+  public async deleteAssetsIfUnreferenced(filenames: (string | null | undefined)[]): Promise<number> {
+    const valid = filenames.filter((f): f is string => Boolean(f) && f !== 'pending');
+    if (valid.length === 0) return 0;
+
+    const uniqueFilenames = Array.from(new Set(valid.map(f => path.basename(f))));
+    const referencedSet = this.getAllReferencedAssetFilenames();
+    let deletedCount = 0;
+
+    for (const filename of uniqueFilenames) {
+      if (!referencedSet.has(filename)) {
+        const deleted = await this.deleteAsset(filename);
+        if (deleted) deletedCount++;
+      }
+    }
+    return deletedCount;
+  }
+
+  /**
+   * Scans the assets directory and returns real-time storage statistics,
+   * distinguishing between active referenced assets and unreferenced orphans.
+   */
+  public async getStorageStats(): Promise<AssetStorageStats> {
+    await this.ensureDirectory();
+
+    let dirents: any[] = [];
+    try {
+      dirents = await fs.readdir(this.assetsDir, { withFileTypes: true });
+    } catch (e) {
+      console.error('[AssetService] Failed to read assets directory:', e);
+      return {
+        totalFiles: 0,
+        totalSizeBytes: 0,
+        activeFiles: 0,
+        activeSizeBytes: 0,
+        orphanFiles: 0,
+        orphanSizeBytes: 0,
+        orphans: [],
+      };
+    }
+
+    const referencedSet = this.getAllReferencedAssetFilenames();
+    const now = Date.now();
+    const GRACE_PERIOD_MS = 30 * 1000; // 30s grace period for in-flight image downloads
+
+    let totalFiles = 0;
+    let totalSizeBytes = 0;
+    let activeFiles = 0;
+    let activeSizeBytes = 0;
+    let orphanFiles = 0;
+    let orphanSizeBytes = 0;
+    const orphans: OrphanAssetInfo[] = [];
+
+    for (const dirent of dirents) {
+      if (!dirent.isFile()) continue;
+
+      const filename = dirent.name;
+      const fullPath = path.join(this.assetsDir, filename);
+
+      try {
+        const stat = await fs.stat(fullPath);
+        const sizeBytes = stat.size;
+        const modifiedAt = stat.mtime.toISOString();
+
+        totalFiles++;
+        totalSizeBytes += sizeBytes;
+
+        if (referencedSet.has(filename)) {
+          activeFiles++;
+          activeSizeBytes += sizeBytes;
+        } else {
+          // Check if file is still within grace period (recent in-flight download)
+          const fileAgeMs = now - stat.mtimeMs;
+          if (fileAgeMs < GRACE_PERIOD_MS) {
+            // Count as active/in-flight rather than an orphan
+            activeFiles++;
+            activeSizeBytes += sizeBytes;
+          } else {
+            orphanFiles++;
+            orphanSizeBytes += sizeBytes;
+
+            let assetType: 'thumbnail' | 'preview' | 'favicon' | 'other' = 'other';
+            if (filename.startsWith('thumb_')) assetType = 'thumbnail';
+            else if (filename.startsWith('prev_')) assetType = 'preview';
+            else if (filename.startsWith('fav_')) assetType = 'favicon';
+
+            orphans.push({
+              filename,
+              sizeBytes,
+              modifiedAt,
+              assetType,
+            });
+          }
+        }
+      } catch (err) {
+        console.warn(`[AssetService] Failed to stat asset file ${filename}:`, err);
+      }
+    }
+
+    // Sort orphans largest first
+    orphans.sort((a, b) => b.sizeBytes - a.sizeBytes);
+
+    return {
+      totalFiles,
+      totalSizeBytes,
+      activeFiles,
+      activeSizeBytes,
+      orphanFiles,
+      orphanSizeBytes,
+      orphans,
+    };
+  }
+
+  /**
+   * Deletes all unreferenced orphan files from userData/assets and reclaims disk space.
+   */
+  public async pruneOrphanAssets(): Promise<VacuumResult> {
+    const stats = await this.getStorageStats();
+    let deletedCount = 0;
+    let reclaimedBytes = 0;
+    const errors: string[] = [];
+
+    for (const orphan of stats.orphans) {
+      // Double check it wasn't referenced in the meantime
+      if (this.isAssetReferenced(orphan.filename)) {
+        continue;
+      }
+
+      const safeFilename = path.basename(orphan.filename);
+      const fullPath = path.join(this.assetsDir, safeFilename);
+
+      try {
+        await fs.unlink(fullPath);
+        deletedCount++;
+        reclaimedBytes += orphan.sizeBytes;
+      } catch (err: any) {
+        if (err.code !== 'ENOENT') {
+          errors.push(`${orphan.filename}: ${err.message}`);
+        }
+      }
+    }
+
+    return {
+      deletedCount,
+      reclaimedBytes,
+      errors,
+    };
   }
 }
 

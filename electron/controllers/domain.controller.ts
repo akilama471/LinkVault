@@ -37,7 +37,7 @@ export function registerDomainController() {
   ipcMain.handle('domains:delete', async (event, id: number, deleteBookmarks: boolean) => {
     try {
       passwordService.checkAuth();
-      domainService.deleteDomain(id, deleteBookmarks);
+      await domainService.deleteDomain(id, deleteBookmarks);
       return { success: true };
     } catch (error: any) {
       return { success: false, error: error.message };

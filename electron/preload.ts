@@ -74,6 +74,10 @@ export const electronAPI = {
     getShowHiddenBookmarks: () => ipcRenderer.invoke('settings:getShowHiddenBookmarks'),
     setShowHiddenBookmarks: (show: boolean) => ipcRenderer.invoke('settings:setShowHiddenBookmarks', show)
   },
+  assets: {
+    getStorageStats: () => ipcRenderer.invoke('assets:getStorageStats'),
+    vacuum: () => ipcRenderer.invoke('assets:vacuum')
+  },
   events: {
     onBookmarksUpdated: (callback: () => void) => {
       const listener = () => callback();

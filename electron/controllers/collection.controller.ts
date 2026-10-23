@@ -76,7 +76,7 @@ export function registerCollectionController() {
   ipcMain.handle('collections:permanentDelete', async (event, id: number) => {
     try {
       passwordService.checkAuth();
-      collectionService.permanentDeleteCollection(id);
+      await collectionService.permanentDeleteCollection(id);
       return { success: true };
     } catch (error: any) {
       return { success: false, error: error.message };

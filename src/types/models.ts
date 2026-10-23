@@ -41,3 +41,27 @@ export interface Collection {
   created_at: string;
   updated_at: string;
 }
+
+export interface OrphanAssetInfo {
+  filename: string;
+  sizeBytes: number;
+  modifiedAt: string;
+  assetType: 'thumbnail' | 'preview' | 'favicon' | 'other';
+}
+
+export interface AssetStorageStats {
+  totalFiles: number;
+  totalSizeBytes: number;
+  activeFiles: number;
+  activeSizeBytes: number;
+  orphanFiles: number;
+  orphanSizeBytes: number;
+  orphans: OrphanAssetInfo[];
+}
+
+export interface VacuumResult {
+  deletedCount: number;
+  reclaimedBytes: number;
+  errors: string[];
+}
+

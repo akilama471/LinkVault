@@ -14,7 +14,7 @@ export declare class CollectionService {
      */
     deleteCollection(id: number, deleteBookmarks?: boolean): void;
     restoreCollection(id: number): Collection | null;
-    permanentDeleteCollection(id: number): void;
+    permanentDeleteCollection(id: number): Promise<void>;
     emptyRecycleBin(): number;
     purgeExpiredCollections(days?: number): number;
     getCollectionsForBookmark(bookmarkId: number): Collection[];

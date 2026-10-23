@@ -1,6 +1,7 @@
 import { Collection } from '../../src/types/models';
 import { collectionModel } from '../models/collection.model';
 import { bookmarkService } from './bookmark.service';
+import { assetService } from './asset.service';
 import { dbManager } from '../database/db';
 import { webContents } from 'electron';
 
@@ -119,8 +120,26 @@ export class CollectionService {
     return restored;
   }
 
-  public permanentDeleteCollection(id: number): void {
+  public async permanentDeleteCollection(id: number): Promise<void> {
+    const db = dbManager.getDb();
+    const row = db.prepare('SELECT deleted_with_bookmarks FROM collections WHERE id = ?').get(id) as { deleted_with_bookmarks?: number } | undefined;
+    
+    let candidateAssets: (string | null | undefined)[] = [];
+    if (row?.deleted_with_bookmarks) {
+      const trashedBookmarks = db.prepare(`
+        SELECT thumbnail_path, preview_path FROM bookmarks
+        WHERE id IN (SELECT bookmark_id FROM bookmark_collections WHERE collection_id = ?)
+          AND deleted_at IS NOT NULL
+      `).all(id) as { thumbnail_path: string | null; preview_path: string | null }[];
+      candidateAssets = trashedBookmarks.flatMap(b => [b.thumbnail_path, b.preview_path]);
+    }
+
     collectionModel.permanentDelete(id);
+
+    if (candidateAssets.length > 0) {
+      await assetService.deleteAssetsIfUnreferenced(candidateAssets);
+    }
+
     webContents.getAllWebContents().forEach(wc => {
       wc.send('collections:updated');
       wc.send('bookmarks:updated');

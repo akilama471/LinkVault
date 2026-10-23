@@ -108,6 +108,9 @@ export class BookmarkService {
     const updatedTitle = metadata.title || bookmark.title;
     const updatedDescription = metadata.description !== null ? metadata.description : bookmark.description;
 
+    const oldPreview = bookmark.preview_path;
+    const oldThumb = bookmark.thumbnail_path;
+
     const updated = bookmarkModel.update(id, {
       title: updatedTitle,
       description: updatedDescription,
@@ -115,6 +118,13 @@ export class BookmarkService {
       preview_path: previewPath,
       thumbnail_path: thumbnailPath
     });
+
+    if (oldPreview && oldPreview !== previewPath) {
+      await assetService.deleteAssetIfUnreferenced(oldPreview);
+    }
+    if (oldThumb && oldThumb !== thumbnailPath && oldThumb !== 'pending') {
+      await assetService.deleteAssetIfUnreferenced(oldThumb);
+    }
 
     webContents.getAllWebContents().forEach(wc => {
       wc.send('bookmarks:updated');
@@ -125,17 +135,17 @@ export class BookmarkService {
   }
 
   public getAllBookmarks(): Bookmark[] {
-    this.purgeExpiredBookmarks();
+    this.purgeExpiredBookmarks().catch(console.error);
     return bookmarkModel.getAll();
   }
 
   public getDeletedBookmarks(): Bookmark[] {
-    this.purgeExpiredBookmarks();
+    this.purgeExpiredBookmarks().catch(console.error);
     return bookmarkModel.getDeleted();
   }
 
   public searchBookmarks(query: string): Bookmark[] {
-    this.purgeExpiredBookmarks();
+    this.purgeExpiredBookmarks().catch(console.error);
     return bookmarkModel.search(query);
   }
 
@@ -151,7 +161,7 @@ export class BookmarkService {
    * Soft-deletes a bookmark by moving it to the Recycle Bin.
    */
   public deleteBookmark(id: number): void {
-    this.purgeExpiredBookmarks();
+    this.purgeExpiredBookmarks().catch(console.error);
     bookmarkModel.delete(id);
     webContents.getAllWebContents().forEach(wc => {
       wc.send('bookmarks:updated');
@@ -170,20 +180,43 @@ export class BookmarkService {
   }
 
   /**
-   * Permanently deletes a single bookmark from the database.
+   * Permanently deletes a single bookmark from the database and prunes unreferenced assets.
    */
-  public permanentDeleteBookmark(id: number): void {
+  public async permanentDeleteBookmark(id: number): Promise<void> {
+    const bookmark = bookmarkModel.findById(id);
     bookmarkModel.permanentDelete(id);
+
+    if (bookmark) {
+      if (bookmark.thumbnail_path) {
+        await assetService.deleteAssetIfUnreferenced(bookmark.thumbnail_path);
+      }
+      if (bookmark.preview_path) {
+        await assetService.deleteAssetIfUnreferenced(bookmark.preview_path);
+      }
+    }
+
     webContents.getAllWebContents().forEach(wc => {
       wc.send('bookmarks:updated');
     });
   }
 
   /**
-   * Permanently deletes all bookmarks in the Recycle Bin.
+   * Permanently deletes all bookmarks in the Recycle Bin and prunes unreferenced assets.
    */
-  public emptyRecycleBin(): number {
+  public async emptyRecycleBin(): Promise<number> {
+    const db = dbManager.getDb();
+    const trashedRows = db.prepare(`
+      SELECT thumbnail_path, preview_path FROM bookmarks WHERE deleted_at IS NOT NULL
+    `).all() as { thumbnail_path: string | null; preview_path: string | null }[];
+
+    const candidateAssets = trashedRows.flatMap(r => [r.thumbnail_path, r.preview_path]);
+
     const count = bookmarkModel.emptyTrash();
+
+    if (candidateAssets.length > 0) {
+      await assetService.deleteAssetsIfUnreferenced(candidateAssets);
+    }
+
     webContents.getAllWebContents().forEach(wc => {
       wc.send('bookmarks:updated');
     });
@@ -191,11 +224,24 @@ export class BookmarkService {
   }
 
   /**
-   * Permanently deletes bookmarks that have been in the Recycle Bin for 15 days or more.
+   * Permanently deletes bookmarks that have been in the Recycle Bin for 15 days or more,
+   * pruning their unreferenced assets from disk.
    */
-  public purgeExpiredBookmarks(days = 15): number {
+  public async purgeExpiredBookmarks(days = 15): Promise<number> {
+    const db = dbManager.getDb();
+    const expiredRows = db.prepare(`
+      SELECT thumbnail_path, preview_path FROM bookmarks
+      WHERE deleted_at IS NOT NULL
+        AND (julianday('now') - julianday(deleted_at)) >= ?
+    `).all(days) as { thumbnail_path: string | null; preview_path: string | null }[];
+
+    const candidateAssets = expiredRows.flatMap(r => [r.thumbnail_path, r.preview_path]);
+
     const purgedCount = bookmarkModel.purgeExpiredTrash(days);
     if (purgedCount > 0) {
+      if (candidateAssets.length > 0) {
+        await assetService.deleteAssetsIfUnreferenced(candidateAssets);
+      }
       webContents.getAllWebContents().forEach(wc => {
         wc.send('bookmarks:updated');
       });

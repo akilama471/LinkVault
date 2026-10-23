@@ -13,8 +13,9 @@ export declare class DomainService {
      */
     renameDomain(id: number, newName: string): Domain;
     /**
-     * Deletes a domain, either keeping or deleting its associated bookmarks.
+     * Deletes a domain, either keeping or deleting its associated bookmarks,
+     * and cleans up unreferenced assets from disk.
      */
-    deleteDomain(id: number, deleteBookmarks: boolean): void;
+    deleteDomain(id: number, deleteBookmarks: boolean): Promise<void>;
 }
 export declare const domainService: DomainService;

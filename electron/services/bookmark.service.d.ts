@@ -23,16 +23,17 @@ export declare class BookmarkService {
      */
     restoreBookmark(id: number): Bookmark | null;
     /**
-     * Permanently deletes a single bookmark from the database.
+     * Permanently deletes a single bookmark from the database and prunes unreferenced assets.
      */
-    permanentDeleteBookmark(id: number): void;
+    permanentDeleteBookmark(id: number): Promise<void>;
     /**
-     * Permanently deletes all bookmarks in the Recycle Bin.
+     * Permanently deletes all bookmarks in the Recycle Bin and prunes unreferenced assets.
      */
-    emptyRecycleBin(): number;
+    emptyRecycleBin(): Promise<number>;
     /**
-     * Permanently deletes bookmarks that have been in the Recycle Bin for 15 days or more.
+     * Permanently deletes bookmarks that have been in the Recycle Bin for 15 days or more,
+     * pruning their unreferenced assets from disk.
      */
-    purgeExpiredBookmarks(days?: number): number;
+    purgeExpiredBookmarks(days?: number): Promise<number>;
 }
 export declare const bookmarkService: BookmarkService;

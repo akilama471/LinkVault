@@ -87,7 +87,7 @@ export function registerBookmarkController() {
   ipcMain.handle('bookmarks:permanentDelete', async (event, id: number) => {
     try {
       passwordService.checkAuth();
-      bookmarkService.permanentDeleteBookmark(id);
+      await bookmarkService.permanentDeleteBookmark(id);
       return { success: true };
     } catch (error: any) {
       return { success: false, error: error.message };
@@ -97,7 +97,7 @@ export function registerBookmarkController() {
   ipcMain.handle('bookmarks:emptyTrash', async () => {
     try {
       passwordService.checkAuth();
-      const count = bookmarkService.emptyRecycleBin();
+      const count = await bookmarkService.emptyRecycleBin();
       return { success: true, count };
     } catch (error: any) {
       return { success: false, error: error.message };
