@@ -233,6 +233,22 @@ export function useBookmarks(isAuthenticated = true) {
     }
   };
 
+  const bulkRemoveTags = async (bookmarkIds: number[], tagIds: number[]) => {
+    if (!bookmarkIds.length || !tagIds.length) return { success: true };
+    try {
+      // @ts-ignore
+      if (window.electronAPI?.tags?.bulkRemove) {
+        // @ts-ignore
+        const result = await window.electronAPI.tags.bulkRemove(bookmarkIds, tagIds);
+        return result;
+      }
+      return { success: true };
+    } catch (err: any) {
+      console.error(err);
+      return { success: false, error: err.message };
+    }
+  };
+
   const bulkAddToCollection = async (collectionId: number, bookmarkIds: number[]) => {
     if (!bookmarkIds.length) return { success: true };
     try {
@@ -286,6 +302,7 @@ export function useBookmarks(isAuthenticated = true) {
     bulkDeleteBookmarks,
     bulkUpdateBookmarks,
     bulkAddTags,
+    bulkRemoveTags,
     bulkAddToCollection,
     refresh: fetchBookmarks
   };

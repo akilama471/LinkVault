@@ -17,6 +17,7 @@ interface TagsPageProps {
   onBulkDeleteBookmarks?: (ids: number[]) => Promise<{ success: boolean; count?: number; error?: string }>;
   onBulkUpdateBookmarks?: (ids: number[], data: Partial<Bookmark>) => Promise<{ success: boolean; count?: number; error?: string }>;
   onBulkAddTags?: (bookmarkIds: number[], tagNames: string[]) => Promise<any>;
+  onBulkRemoveTags?: (bookmarkIds: number[], tagIds: number[]) => Promise<any>;
   onBulkAddToCollection?: (collectionId: number, bookmarkIds: number[]) => Promise<any>;
 }
 
@@ -31,6 +32,7 @@ export const TagsPage: React.FC<TagsPageProps> = ({
   onBulkDeleteBookmarks,
   onBulkUpdateBookmarks,
   onBulkAddTags,
+  onBulkRemoveTags,
   onBulkAddToCollection
 }) => {
   const { tags, loading, createTag, renameTag, deleteTag, getBookmarkIds } = useTags();
@@ -122,6 +124,7 @@ export const TagsPage: React.FC<TagsPageProps> = ({
       onBulkDeleteBookmarks={onBulkDeleteBookmarks}
       onBulkUpdateBookmarks={onBulkUpdateBookmarks}
       onBulkAddTags={onBulkAddTags}
+      onBulkRemoveTags={onBulkRemoveTags}
       onBulkAddToCollection={onBulkAddToCollection}
     />
   );

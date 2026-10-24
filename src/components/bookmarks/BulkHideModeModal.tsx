@@ -3,16 +3,18 @@ import { Eye, EyeOff, X } from 'lucide-react';
 
 interface BulkHideModeModalProps {
   selectedCount: number;
+  initialMode?: number;
   onClose: () => void;
   onConfirm: (hideMode: number) => Promise<void> | void;
 }
 
 export const BulkHideModeModal: React.FC<BulkHideModeModalProps> = ({
   selectedCount,
+  initialMode = 0,
   onClose,
   onConfirm
 }) => {
-  const [selectedMode, setSelectedMode] = useState<number>(0);
+  const [selectedMode, setSelectedMode] = useState<number>(initialMode);
   const [saving, setSaving] = useState(false);
 
   const options = [

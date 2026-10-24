@@ -30,5 +30,6 @@ export declare class CollectionModel {
     getCollectionsForBookmark(bookmarkId: number): Collection[];
     getBookmarkIdsForCollection(collectionId: number): number[];
     setCollectionsForBookmark(bookmarkId: number, collectionIds: number[]): void;
+    bulkAddBookmarksToCollection(collectionId: number, bookmarkIds: number[]): void;
 }
 export declare const collectionModel: CollectionModel;

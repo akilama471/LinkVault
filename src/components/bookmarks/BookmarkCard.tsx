@@ -20,6 +20,7 @@ export interface BookmarkCardProps {
   isSelected?: boolean;
   isFocused?: boolean;
   isSelectionActive?: boolean;
+  isSelectionMode?: boolean;
   onToggleSelect?: (id: number, e: React.MouseEvent | React.ChangeEvent) => void;
   onClickCard?: (id: number, e: React.MouseEvent) => void;
   cardIndex?: number;
@@ -37,6 +38,7 @@ export const BookmarkCard: React.FC<BookmarkCardProps> = ({
   isSelected = false,
   isFocused = false,
   isSelectionActive = false,
+  isSelectionMode = false,
   onToggleSelect,
   onClickCard,
   cardIndex
@@ -200,6 +202,10 @@ export const BookmarkCard: React.FC<BookmarkCardProps> = ({
     } else if (e.shiftKey) {
       e.preventDefault();
       onClickCard?.(bookmark.id, e);
+    } else if (isSelectionMode || isSelectionActive) {
+      // In selection mode or when items are selected, clicking anywhere on the card toggles its selection!
+      e.preventDefault();
+      onToggleSelect?.(bookmark.id, e);
     } else if (onClickCard) {
       onClickCard(bookmark.id, e);
     }
@@ -232,8 +238,15 @@ export const BookmarkCard: React.FC<BookmarkCardProps> = ({
               e.stopPropagation();
               onToggleSelect?.(bookmark.id, e);
             }}
-            className="flex items-center justify-center p-1 rounded hover:bg-gray-100 cursor-pointer shrink-0"
-            title={isSelected ? "Deselect" : "Select (Ctrl+Click or Space)"}
+            className={clsx(
+              "flex items-center justify-center p-1.5 rounded-lg cursor-pointer shrink-0 transition-colors",
+              isSelected 
+                ? "bg-blue-100 text-blue-700" 
+                : (isSelectionMode || isSelectionActive)
+                ? "bg-gray-100/90 text-gray-500 hover:bg-gray-200"
+                : "hover:bg-gray-100 text-gray-400"
+            )}
+            title={isSelected ? "Deselect" : "Select (Click or Space)"}
           >
             <input
               type="checkbox"
@@ -458,15 +471,15 @@ export const BookmarkCard: React.FC<BookmarkCardProps> = ({
             onToggleSelect?.(bookmark.id, e);
           }}
           className={clsx(
-            "absolute z-10 p-1 rounded-lg transition-all cursor-pointer flex items-center justify-center",
-            isCompact ? "top-1.5 left-1.5" : "top-2 left-2",
+            "absolute z-10 p-1.5 rounded-lg transition-all cursor-pointer flex items-center justify-center",
+            isCompact ? "top-1.5 left-1.5" : "top-2.5 left-2.5",
             isSelected
               ? "opacity-100 bg-blue-600 text-white shadow-md ring-2 ring-white"
-              : isSelectionActive
-              ? "opacity-90 bg-white/95 text-gray-500 hover:text-gray-800 hover:bg-white shadow-xs border border-gray-200"
+              : (isSelectionActive || isSelectionMode)
+              ? "opacity-95 bg-white/95 text-gray-600 hover:text-gray-900 hover:bg-white shadow-xs border border-gray-300 ring-1 ring-black/5"
               : "opacity-0 group-hover:opacity-100 bg-white/90 hover:bg-white text-gray-400 hover:text-gray-700 shadow-xs border border-gray-200"
           )}
-          title={isSelected ? "Deselect" : "Select (Ctrl+Click or Space)"}
+          title={isSelected ? "Deselect" : "Select (Click or Space)"}
         >
           <input
             type="checkbox"

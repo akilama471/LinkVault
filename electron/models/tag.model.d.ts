@@ -9,5 +9,7 @@ export declare class TagModel {
     getTagsForBookmark(bookmarkId: number): Tag[];
     getBookmarkIdsForTag(tagId: number): number[];
     setTagsForBookmark(bookmarkId: number, tagIds: number[]): void;
+    bulkAddTagsToBookmarks(bookmarkIds: number[], tagIds: number[]): void;
+    bulkRemoveTagsFromBookmarks(bookmarkIds: number[], tagIds: number[]): void;
 }
 export declare const tagModel: TagModel;

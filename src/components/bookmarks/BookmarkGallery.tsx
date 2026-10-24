@@ -9,7 +9,7 @@ import { BulkHideModeModal } from './BulkHideModeModal';
 import { ViewModeToggle, ViewMode } from '../common/ViewModeToggle';
 import { KeyboardShortcutsModal } from '../common/KeyboardShortcutsModal';
 import { Bookmark } from '../../types/models';
-import { Search, Loader2, ChevronLeft, ChevronRight, Keyboard } from 'lucide-react';
+import { Search, Loader2, ChevronLeft, ChevronRight, CheckSquare } from 'lucide-react';
 import { useToast } from '../../context/ToastContext';
 import { useBookmarkOpener } from '../../context/BookmarkOpenerContext';
 
@@ -24,6 +24,7 @@ export interface BookmarkGalleryProps {
   onBulkDeleteBookmarks?: (ids: number[]) => Promise<{ success: boolean; count?: number; error?: string }>;
   onBulkUpdateBookmarks?: (ids: number[], data: Partial<Bookmark>) => Promise<{ success: boolean; count?: number; error?: string }>;
   onBulkAddTags?: (bookmarkIds: number[], tagNames: string[]) => Promise<any>;
+  onBulkRemoveTags?: (bookmarkIds: number[], tagIds: number[]) => Promise<any>;
   onBulkAddToCollection?: (collectionId: number, bookmarkIds: number[]) => Promise<any>;
   headerTitle?: React.ReactNode;
   headerSubtitle?: React.ReactNode;
@@ -45,6 +46,7 @@ export const BookmarkGallery: React.FC<BookmarkGalleryProps> = ({
   onBulkDeleteBookmarks,
   onBulkUpdateBookmarks,
   onBulkAddTags,
+  onBulkRemoveTags,
   onBulkAddToCollection,
   headerTitle,
   headerSubtitle,
@@ -85,7 +87,29 @@ export const BookmarkGallery: React.FC<BookmarkGalleryProps> = ({
 
   // 3. Selection State
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [isSelectionMode, setIsSelectionMode] = useState(false);
+  const [isModifierDown, setIsModifierDown] = useState(false);
   const lastSelectedIdRef = useRef<number | null>(null);
+
+  // Monitor Shift / Ctrl / Meta modifier key presses to prime selection mode
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.shiftKey || e.ctrlKey || e.metaKey) {
+        setIsModifierDown(true);
+      }
+    };
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (!e.shiftKey && !e.ctrlKey && !e.metaKey) {
+        setIsModifierDown(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+    };
+  }, []);
 
   // 4. Keyboard Navigation Focus
   const [focusedIndex, setFocusedIndex] = useState<number | null>(null);
@@ -102,6 +126,7 @@ export const BookmarkGallery: React.FC<BookmarkGalleryProps> = ({
   useEffect(() => {
     setCurrentPage(1);
     setSelectedIds(new Set());
+    setIsSelectionMode(false);
     setFocusedIndex(null);
   }, [bookmarks.length, sortOrder]);
 
@@ -135,7 +160,19 @@ export const BookmarkGallery: React.FC<BookmarkGalleryProps> = ({
   const isAllVisibleSelected = visibleBookmarkIds.length > 0 && visibleBookmarkIds.every(id => selectedIds.has(id));
 
   // Selection handlers
+  const handleToggleSelectionMode = useCallback(() => {
+    setIsSelectionMode(prev => {
+      if (prev) {
+        setSelectedIds(new Set());
+        lastSelectedIdRef.current = null;
+        return false;
+      }
+      return true;
+    });
+  }, []);
+
   const handleToggleSelect = useCallback((id: number) => {
+    setIsSelectionMode(true);
     setSelectedIds(prev => {
       const next = new Set(prev);
       if (next.has(id)) {
@@ -149,6 +186,7 @@ export const BookmarkGallery: React.FC<BookmarkGalleryProps> = ({
   }, []);
 
   const handleSelectRange = useCallback((targetId: number) => {
+    setIsSelectionMode(true);
     const lastId = lastSelectedIdRef.current;
     if (lastId === null) {
       handleToggleSelect(targetId);
@@ -184,6 +222,7 @@ export const BookmarkGallery: React.FC<BookmarkGalleryProps> = ({
         return next;
       });
     } else {
+      setIsSelectionMode(true);
       setSelectedIds(prev => {
         const next = new Set(prev);
         visibleBookmarkIds.forEach(id => next.add(id));
@@ -195,6 +234,7 @@ export const BookmarkGallery: React.FC<BookmarkGalleryProps> = ({
   const handleClearSelection = useCallback(() => {
     setSelectedIds(new Set());
     lastSelectedIdRef.current = null;
+    setIsSelectionMode(false);
   }, []);
 
   // Keyboard navigation & Shortcuts listener
@@ -233,13 +273,14 @@ export const BookmarkGallery: React.FC<BookmarkGalleryProps> = ({
       // 2. Select All Visible (Ctrl+A)
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'a') {
         e.preventDefault();
+        setIsSelectionMode(true);
         setSelectedIds(new Set(visibleBookmarkIds));
         return;
       }
 
       // 3. Escape key clears selection or resets focus
       if (e.key === 'Escape') {
-        if (selectedIds.size > 0) {
+        if (selectedIds.size > 0 || isSelectionMode) {
           e.preventDefault();
           handleClearSelection();
         } else if (focusedIndex !== null) {
@@ -398,6 +439,23 @@ export const BookmarkGallery: React.FC<BookmarkGalleryProps> = ({
     }
   };
 
+  const handleBulkRemoveTags = async (tagIds: number[]) => {
+    const ids = Array.from(selectedIds);
+    if (!ids.length || !tagIds.length) return;
+    try {
+      if (onBulkRemoveTags) {
+        await onBulkRemoveTags(ids, tagIds);
+      } else {
+        // @ts-ignore
+        await window.electronAPI?.tags?.bulkRemove?.(ids, tagIds);
+      }
+      success('Tags Removed', `Removed ${tagIds.length} ${tagIds.length === 1 ? 'tag' : 'tags'} from ${ids.length} bookmarks.`);
+      handleClearSelection();
+    } catch (err: any) {
+      error('Tag Removal Failed', err?.message || 'Could not remove tags from selected bookmarks.');
+    }
+  };
+
   const handleBulkAddToCollection = async (collectionId: number) => {
     const ids = Array.from(selectedIds);
     if (!ids.length) return;
@@ -433,6 +491,16 @@ export const BookmarkGallery: React.FC<BookmarkGalleryProps> = ({
     }
   };
 
+  const isAllSelectedFavorite = useMemo(() => {
+    if (selectedBookmarksList.length === 0) return false;
+    return selectedBookmarksList.every(b => b.is_favorite);
+  }, [selectedBookmarksList]);
+
+  const isAllSelectedImportant = useMemo(() => {
+    if (selectedBookmarksList.length === 0) return false;
+    return selectedBookmarksList.every(b => b.is_important);
+  }, [selectedBookmarksList]);
+
   const handleBulkFavorite = async (isFavorite: boolean) => {
     const ids = Array.from(selectedIds);
     if (!ids.length) return;
@@ -444,7 +512,10 @@ export const BookmarkGallery: React.FC<BookmarkGalleryProps> = ({
           await onUpdateBookmark(id, { is_favorite: isFavorite });
         }
       }
-      success('Favorites Updated', `Marked ${ids.length} bookmarks as favorite.`);
+      success(
+        'Favorites Updated', 
+        isFavorite ? `Marked ${ids.length} bookmarks as favorite.` : `Removed ${ids.length} bookmarks from favorites.`
+      );
     } catch (err: any) {
       error('Update Failed', err?.message || 'Could not update favorite status.');
     }
@@ -461,7 +532,10 @@ export const BookmarkGallery: React.FC<BookmarkGalleryProps> = ({
           await onUpdateBookmark(id, { is_important: isImportant });
         }
       }
-      success('Priority Updated', `Marked ${ids.length} bookmarks as important.`);
+      success(
+        'Priority Updated', 
+        isImportant ? `Marked ${ids.length} bookmarks as important.` : `Removed priority flag from ${ids.length} bookmarks.`
+      );
     } catch (err: any) {
       error('Update Failed', err?.message || 'Could not update importance status.');
     }
@@ -486,9 +560,29 @@ export const BookmarkGallery: React.FC<BookmarkGalleryProps> = ({
           )}
         </div>
 
-        {/* Right side controls: Sort, ViewMode, Shortcuts, and custom header actions */}
-        <div className="flex items-center gap-2.5 sm:gap-3">
+        {/* Right side controls: Multi-select, Sort, ViewMode, and custom header actions */}
+        <div className="flex items-center gap-2 sm:gap-2.5">
           {headerActions}
+
+          {/* Multi-select toggle button */}
+          <button
+            type="button"
+            onClick={handleToggleSelectionMode}
+            className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all cursor-pointer border shadow-2xs ${
+              (isSelectionMode || selectedIds.size > 0)
+                ? 'bg-blue-50 text-blue-700 border-blue-300 ring-2 ring-blue-500/20'
+                : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50 hover:text-gray-900'
+            }`}
+            title={isSelectionMode ? "Exit multi-select mode (Esc)" : "Toggle multi-select mode (or hold Shift/Ctrl)"}
+          >
+            <CheckSquare className={`w-4 h-4 ${(isSelectionMode || selectedIds.size > 0) ? 'text-blue-600' : 'text-gray-500'}`} />
+            <span className="hidden sm:inline">{isSelectionMode ? 'Selecting' : 'Select'}</span>
+            {selectedIds.size > 0 && (
+              <span className="px-1.5 py-0.2 rounded-full text-xs font-bold bg-blue-600 text-white">
+                {selectedIds.size}
+              </span>
+            )}
+          </button>
 
           {/* Sort dropdown */}
           <select
@@ -508,17 +602,6 @@ export const BookmarkGallery: React.FC<BookmarkGalleryProps> = ({
             viewMode={viewMode}
             onChange={handleViewModeChange}
           />
-
-          {/* Keyboard shortcuts trigger */}
-          <button
-            type="button"
-            onClick={() => setShowShortcutsModal(true)}
-            title="Keyboard shortcuts (?)"
-            aria-label="Keyboard shortcuts"
-            className="p-2 bg-white border border-gray-300 rounded-lg text-gray-500 hover:text-gray-800 hover:bg-gray-50 outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer shadow-2xs transition-colors"
-          >
-            <Keyboard className="w-4 h-4" />
-          </button>
         </div>
       </div>
 
@@ -555,10 +638,12 @@ export const BookmarkGallery: React.FC<BookmarkGalleryProps> = ({
               isSelected={selectedIds.has(bookmark.id)}
               isFocused={focusedIndex === idx}
               isSelectionActive={selectedIds.size > 0}
+              isSelectionMode={isSelectionMode || isModifierDown}
               onToggleSelect={handleToggleSelect}
               onClickCard={(_id, e) => {
                 setFocusedIndex(idx);
                 if (e.shiftKey) {
+                  setIsSelectionMode(true);
                   handleSelectRange(bookmark.id);
                 }
               }}
@@ -608,6 +693,8 @@ export const BookmarkGallery: React.FC<BookmarkGalleryProps> = ({
         selectedCount={selectedIds.size}
         totalVisibleCount={paginatedBookmarks.length}
         isAllVisibleSelected={isAllVisibleSelected}
+        isAllSelectedFavorite={isAllSelectedFavorite}
+        isAllSelectedImportant={isAllSelectedImportant}
         onToggleSelectAllVisible={handleToggleSelectAllVisible}
         onOpenBulkTag={() => setShowBulkTagModal(true)}
         onOpenBulkCollection={() => setShowBulkCollectionModal(true)}
@@ -618,7 +705,7 @@ export const BookmarkGallery: React.FC<BookmarkGalleryProps> = ({
         onClearSelection={handleClearSelection}
       />
 
-      {/* Bulk Delete Modal */}
+      {/* Bulk Delete / Recycle Bin Modal */}
       {showBulkDeleteModal && (
         <BulkDeleteModal
           selectedCount={selectedIds.size}
@@ -628,12 +715,14 @@ export const BookmarkGallery: React.FC<BookmarkGalleryProps> = ({
         />
       )}
 
-      {/* Bulk Tag Modal */}
+      {/* Bulk Tag Modal (Add & Remove Tags) */}
       {showBulkTagModal && (
         <BulkTagModal
           selectedCount={selectedIds.size}
+          selectedBookmarks={selectedBookmarksList}
           onClose={() => setShowBulkTagModal(false)}
-          onConfirm={handleBulkAddTags}
+          onConfirmAdd={handleBulkAddTags}
+          onConfirmRemove={handleBulkRemoveTags}
         />
       )}
 
@@ -646,10 +735,15 @@ export const BookmarkGallery: React.FC<BookmarkGalleryProps> = ({
         />
       )}
 
-      {/* Bulk Hide Mode Modal */}
+      {/* Bulk Hide Mode Modal (Visible / Method 1 / Method 2) */}
       {showBulkHideModeModal && (
         <BulkHideModeModal
           selectedCount={selectedIds.size}
+          initialMode={
+            selectedBookmarksList.length > 0 && selectedBookmarksList.every(b => b.hide_mode === selectedBookmarksList[0].hide_mode)
+              ? selectedBookmarksList[0].hide_mode
+              : 0
+          }
           onClose={() => setShowBulkHideModeModal(false)}
           onConfirm={handleBulkChangeHideMode}
         />

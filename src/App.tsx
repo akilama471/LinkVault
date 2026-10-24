@@ -38,6 +38,7 @@ const App: React.FC = () => {
     bulkDeleteBookmarks,
     bulkUpdateBookmarks,
     bulkAddTags,
+    bulkRemoveTags,
     bulkAddToCollection,
     refresh: refreshBookmarks
   } = useBookmarks(isAuthenticated);
@@ -184,6 +185,7 @@ const App: React.FC = () => {
               onBulkDeleteBookmarks={bulkDeleteBookmarks}
               onBulkUpdateBookmarks={bulkUpdateBookmarks}
               onBulkAddTags={bulkAddTags}
+              onBulkRemoveTags={bulkRemoveTags}
               onBulkAddToCollection={bulkAddToCollection}
             />
           )}
@@ -200,6 +202,7 @@ const App: React.FC = () => {
               onBulkDeleteBookmarks={bulkDeleteBookmarks}
               onBulkUpdateBookmarks={bulkUpdateBookmarks}
               onBulkAddTags={bulkAddTags}
+              onBulkRemoveTags={bulkRemoveTags}
               onBulkAddToCollection={bulkAddToCollection}
             />
           )}
@@ -216,6 +219,7 @@ const App: React.FC = () => {
               onBulkDeleteBookmarks={bulkDeleteBookmarks}
               onBulkUpdateBookmarks={bulkUpdateBookmarks}
               onBulkAddTags={bulkAddTags}
+              onBulkRemoveTags={bulkRemoveTags}
               onBulkAddToCollection={bulkAddToCollection}
             />
           )}
@@ -232,6 +236,7 @@ const App: React.FC = () => {
               onBulkDeleteBookmarks={bulkDeleteBookmarks}
               onBulkUpdateBookmarks={bulkUpdateBookmarks}
               onBulkAddTags={bulkAddTags}
+              onBulkRemoveTags={bulkRemoveTags}
               onBulkAddToCollection={bulkAddToCollection}
             />
           )}

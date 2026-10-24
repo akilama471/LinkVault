@@ -29,6 +29,14 @@ export declare class BookmarkModel {
      */
     delete(id: number): void;
     /**
+     * Moves multiple bookmarks to the Recycle Bin (soft delete).
+     */
+    bulkDelete(ids: number[]): number;
+    /**
+     * Updates multiple bookmarks in a single query.
+     */
+    bulkUpdate(ids: number[], data: UpdateBookmarkDTO): number;
+    /**
      * Restores a bookmark from the Recycle Bin.
      */
     restore(id: number): Bookmark | null;

@@ -19,6 +19,14 @@ export declare class BookmarkService {
      */
     deleteBookmark(id: number): void;
     /**
+     * Soft-deletes multiple bookmarks by moving them to the Recycle Bin.
+     */
+    bulkDeleteBookmarks(ids: number[]): number;
+    /**
+     * Bulk updates properties for multiple bookmarks.
+     */
+    bulkUpdateBookmarks(ids: number[], data: UpdateBookmarkDTO): number;
+    /**
      * Restores a bookmark from the Recycle Bin.
      */
     restoreBookmark(id: number): Bookmark | null;

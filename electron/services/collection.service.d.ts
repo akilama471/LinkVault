@@ -19,6 +19,7 @@ export declare class CollectionService {
     purgeExpiredCollections(days?: number): number;
     getCollectionsForBookmark(bookmarkId: number): Collection[];
     setCollectionsForBookmark(bookmarkId: number, collectionNames: string[]): Collection[];
+    bulkAddBookmarksToCollection(collectionId: number, bookmarkIds: number[]): void;
     getBookmarkIdsForCollection(collectionId: number): number[];
 }
 export declare const collectionService: CollectionService;
