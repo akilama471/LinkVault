@@ -1,5 +1,5 @@
 import React from 'react';
-import { Bookmark, Star, LayoutGrid, Hash, Folder, Settings, Globe, Activity, Lock, Trash2 } from 'lucide-react';
+import { Bookmark, Star, LayoutGrid, Hash, Folder, Settings, Globe, Activity, Lock, Trash2, ShieldAlert } from 'lucide-react';
 import clsx from 'clsx';
 
 interface SidebarProps {
@@ -8,15 +8,24 @@ interface SidebarProps {
   hasPassword?: boolean;
   onLock?: () => void;
   trashCount?: number;
+  auditorCount?: number;
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onTabChange, hasPassword, onLock, trashCount = 0 }) => {
+export const Sidebar: React.FC<SidebarProps> = ({
+  currentTab,
+  onTabChange,
+  hasPassword,
+  onLock,
+  trashCount = 0,
+  auditorCount = 0
+}) => {
   const navItems = [
     { id: 'all', label: 'All Bookmarks', icon: LayoutGrid },
     { id: 'favorites', label: 'Favorites', icon: Star },
     { id: 'domains', label: 'Websites', icon: Globe },
     { id: 'collections', label: 'Collections', icon: Folder },
     { id: 'tags', label: 'Tags', icon: Hash },
+    { id: 'auditor', label: 'Link Auditor', icon: ShieldAlert, badge: auditorCount },
     { id: 'trash', label: 'Recycle Bin', icon: Trash2, badge: trashCount },
     { id: 'jobs', label: 'Background Jobs', icon: Activity },
     { id: 'settings', label: 'Settings', icon: Settings },
@@ -53,6 +62,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onTabChange, hasPa
                   'text-xs font-semibold px-2 py-0.5 rounded-full',
                   currentTab === item.id
                     ? 'bg-blue-700 text-white'
+                    : item.id === 'auditor'
+                    ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
                     : 'bg-gray-800 text-gray-300'
                 )}
               >

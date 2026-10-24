@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Bookmark } from '../../types/models';
-import { RotateCw, Edit3, Trash2, Eye, EyeOff, Check } from 'lucide-react';
+import { RotateCw, Edit3, Trash2, Eye, EyeOff, Check, ShieldAlert } from 'lucide-react';
 import clsx from 'clsx';
 
 interface BookmarkContextMenuProps {
@@ -13,6 +13,7 @@ interface BookmarkContextMenuProps {
   onRename: () => void;
   onDelete: () => void;
   onUpdateHideMode?: (mode: number) => void;
+  onCheckHealth?: () => void;
 }
 
 export const BookmarkContextMenu: React.FC<BookmarkContextMenuProps> = ({
@@ -25,6 +26,7 @@ export const BookmarkContextMenu: React.FC<BookmarkContextMenuProps> = ({
   onRename,
   onDelete,
   onUpdateHideMode,
+  onCheckHealth,
 }) => {
   const menuRef = useRef<HTMLDivElement>(null);
   const [position, setPosition] = useState({ top: y, left: x });
@@ -157,6 +159,24 @@ export const BookmarkContextMenu: React.FC<BookmarkContextMenuProps> = ({
           <span className="text-[10px] text-gray-400 mt-0.5">Change display name</span>
         </div>
       </button>
+
+      {/* Check Link Health Option */}
+      {onCheckHealth && (
+        <button
+          type="button"
+          onClick={() => {
+            onCheckHealth();
+            onClose();
+          }}
+          className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-left text-gray-700 hover:bg-emerald-50 hover:text-emerald-700 transition-colors cursor-pointer"
+        >
+          <ShieldAlert className="w-4 h-4 text-emerald-600 shrink-0" />
+          <div className="flex flex-col">
+            <span className="font-medium text-xs leading-none">Check Link Health</span>
+            <span className="text-[10px] text-gray-400 mt-0.5">Test connection & status</span>
+          </div>
+        </button>
+      )}
 
       {onUpdateHideMode && (
         <>

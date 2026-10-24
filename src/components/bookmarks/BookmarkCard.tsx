@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Bookmark as BookmarkModel } from '../../types/models';
-import { ExternalLink, Star, Trash2, Flag, Edit2, RotateCw, Globe, Loader2, EyeOff } from 'lucide-react';
+import { ExternalLink, Star, Trash2, Flag, Edit2, RotateCw, Globe, Loader2, EyeOff, AlertTriangle } from 'lucide-react';
 import clsx from 'clsx';
 import { useBookmarkOpener } from '../../context/BookmarkOpenerContext';
 import { useToast } from '../../context/ToastContext';
@@ -140,6 +140,80 @@ export const BookmarkCard: React.FC<BookmarkCardProps> = ({
     } finally {
       setIsRefetching(false);
     }
+  };
+
+  const handleCheckHealth = async () => {
+    try {
+      // @ts-ignore
+      const res = await window.electronAPI?.auditor?.checkBookmark?.(bookmark.id);
+      if (res && res.success && res.data) {
+        const item = res.data;
+        if (onUpdate) {
+          onUpdate(bookmark.id, {
+            health_status: item.health_status,
+            http_status: item.http_status,
+            health_error: item.health_error,
+            last_checked_at: item.last_checked_at
+          });
+        }
+        if (item.health_status === 'ok') {
+          success('Link is Healthy', `"${displayName}" returned HTTP ${item.http_status || 200} OK.`);
+        } else {
+          error('Link Issue Detected', `"${displayName}" is flagged as ${item.health_status} (${item.health_error || item.http_status || 'error'}).`);
+        }
+      } else {
+        error('Health Check Failed', res?.error || 'Could not verify URL health.');
+      }
+    } catch (err: any) {
+      error('Health Check Failed', err?.message || 'Error executing health check.');
+    }
+  };
+
+  const renderHealthBadge = () => {
+    if (!bookmark.health_status || bookmark.health_status === 'ok') {
+      return null;
+    }
+
+    const isDead = bookmark.health_status === 'dead';
+    const isServerError = bookmark.health_status === 'server_error';
+    const isDns = bookmark.health_status === 'dns_error';
+    const isTimeout = bookmark.health_status === 'timeout';
+    const isUnreachable = bookmark.health_status === 'unreachable';
+
+    let badgeText = 'Issue';
+    let badgeClasses = 'bg-rose-50 text-rose-700 border-rose-200';
+
+    if (isDead) {
+      badgeText = bookmark.http_status ? `${bookmark.http_status} Dead` : 'Dead Link';
+      badgeClasses = 'bg-rose-50 text-rose-700 border-rose-200';
+    } else if (isServerError) {
+      badgeText = bookmark.http_status ? `${bookmark.http_status} Server Error` : '500 Error';
+      badgeClasses = 'bg-amber-50 text-amber-800 border-amber-200';
+    } else if (isDns) {
+      badgeText = 'DNS Failed';
+      badgeClasses = 'bg-purple-50 text-purple-700 border-purple-200';
+    } else if (isTimeout) {
+      badgeText = 'Timeout';
+      badgeClasses = 'bg-orange-50 text-orange-800 border-orange-200';
+    } else if (isUnreachable) {
+      badgeText = 'Unreachable';
+      badgeClasses = 'bg-gray-100 text-gray-700 border-gray-300';
+    }
+
+    const title = `Link health issue: ${bookmark.health_error || badgeText}${bookmark.last_checked_at ? ` (checked ${new Date(bookmark.last_checked_at).toLocaleDateString()})` : ''}`;
+
+    return (
+      <span
+        title={title}
+        className={clsx(
+          "inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold border shadow-2xs shrink-0 select-none",
+          badgeClasses
+        )}
+      >
+        <AlertTriangle className="w-2.5 h-2.5 shrink-0" />
+        <span>{badgeText}</span>
+      </span>
+    );
   };
 
   const handleStartRename = () => {
@@ -326,6 +400,7 @@ export const BookmarkCard: React.FC<BookmarkCardProps> = ({
                   <EyeOff className="w-2.5 h-2.5" /> Hidden
                 </span>
               )}
+              {renderHealthBadge()}
             </div>
 
             <p className="text-xs text-gray-500 truncate max-w-2xl">
@@ -412,6 +487,7 @@ export const BookmarkCard: React.FC<BookmarkCardProps> = ({
             onRename={handleStartRename}
             onDelete={() => setShowDeleteModal(true)}
             onUpdateHideMode={(mode) => onUpdate && onUpdate(bookmark.id, { hide_mode: mode })}
+            onCheckHealth={handleCheckHealth}
           />
         )}
 
@@ -558,22 +634,25 @@ export const BookmarkCard: React.FC<BookmarkCardProps> = ({
 
         {/* Card Body */}
         <div className={clsx("flex flex-col flex-1", isCompact ? "p-3" : "p-4")}>
-          {bookmark.hide_mode === 1 && (
-            <span
-              title="Hidden only from All Bookmarks (Method 1)"
-              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-50 text-amber-700 border border-amber-200 mb-1 w-fit"
-            >
-              <EyeOff className="w-2.5 h-2.5" /> Hidden (All)
-            </span>
-          )}
-          {bookmark.hide_mode === 2 && (
-            <span
-              title="Hidden from all locations (Method 2)"
-              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-purple-50 text-purple-700 border border-purple-200 mb-1 w-fit"
-            >
-              <EyeOff className="w-2.5 h-2.5" /> Hidden
-            </span>
-          )}
+          <div className="flex flex-wrap items-center gap-1.5 mb-1">
+            {bookmark.hide_mode === 1 && (
+              <span
+                title="Hidden only from All Bookmarks (Method 1)"
+                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-50 text-amber-700 border border-amber-200 w-fit"
+              >
+                <EyeOff className="w-2.5 h-2.5" /> Hidden (All)
+              </span>
+            )}
+            {bookmark.hide_mode === 2 && (
+              <span
+                title="Hidden from all locations (Method 2)"
+                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-purple-50 text-purple-700 border border-purple-200 w-fit"
+              >
+                <EyeOff className="w-2.5 h-2.5" /> Hidden
+              </span>
+            )}
+            {renderHealthBadge()}
+          </div>
 
           {isRenaming ? (
             <div className="mb-1.5" onClick={(e) => e.stopPropagation()}>
@@ -685,6 +764,7 @@ export const BookmarkCard: React.FC<BookmarkCardProps> = ({
           onRename={handleStartRename}
           onDelete={() => setShowDeleteModal(true)}
           onUpdateHideMode={(mode) => onUpdate && onUpdate(bookmark.id, { hide_mode: mode })}
+          onCheckHealth={handleCheckHealth}
         />
       )}
 

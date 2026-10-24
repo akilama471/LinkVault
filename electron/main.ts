@@ -15,6 +15,7 @@ import { registerSettingsController } from './controllers/settings.controller';
 import { registerAssetController } from './controllers/asset.controller';
 import { registerDatabaseController } from './controllers/database.controller';
 import { registerBookmarkExchangeController } from './controllers/bookmark-exchange.controller';
+import { registerAuditorController } from './controllers/auditor.controller';
 import { browserLauncherService } from './services/browser-launcher.service';
 import { bookmarkService } from './services/bookmark.service';
 import { collectionService } from './services/collection.service';
@@ -179,6 +180,7 @@ app.whenReady().then(() => {
   registerAssetController();
   registerDatabaseController();
   registerBookmarkExchangeController();
+  registerAuditorController();
   
   // Start background jobs only if authenticated
   if (passwordService.isAuth()) {

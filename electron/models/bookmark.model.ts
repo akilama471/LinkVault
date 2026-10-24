@@ -22,6 +22,10 @@ export interface UpdateBookmarkDTO {
   preview_path?: string | null;
   deleted_at?: string | null;
   hide_mode?: number;
+  http_status?: number | null;
+  health_status?: string | null;
+  health_error?: string | null;
+  last_checked_at?: string | null;
 }
 
 export class BookmarkModel {
@@ -75,6 +79,10 @@ export class BookmarkModel {
     if (data.preview_path !== undefined) { updates.push('preview_path = ?'); values.push(data.preview_path); }
     if (data.deleted_at !== undefined) { updates.push('deleted_at = ?'); values.push(data.deleted_at); }
     if (data.hide_mode !== undefined) { updates.push('hide_mode = ?'); values.push(data.hide_mode); }
+    if (data.http_status !== undefined) { updates.push('http_status = ?'); values.push(data.http_status); }
+    if (data.health_status !== undefined) { updates.push('health_status = ?'); values.push(data.health_status); }
+    if (data.health_error !== undefined) { updates.push('health_error = ?'); values.push(data.health_error); }
+    if (data.last_checked_at !== undefined) { updates.push('last_checked_at = ?'); values.push(data.last_checked_at); }
     
     if (updates.length === 0) return this.findById(id)!;
 
@@ -85,6 +93,24 @@ export class BookmarkModel {
     db.prepare(sql).run(...values);
 
     return this.findById(id)!;
+  }
+
+  /**
+   * Updates health check status and error details for a bookmark
+   */
+  public updateHealth(id: number, health: { http_status?: number | null; health_status: string; health_error?: string | null; last_checked_at: string }): void {
+    const db = dbManager.getDb();
+    db.prepare(`
+      UPDATE bookmarks 
+      SET http_status = ?, health_status = ?, health_error = ?, last_checked_at = ?
+      WHERE id = ?
+    `).run(
+      health.http_status ?? null,
+      health.health_status,
+      health.health_error ?? null,
+      health.last_checked_at,
+      id
+    );
   }
 
   /**

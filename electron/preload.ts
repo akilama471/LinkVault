@@ -124,7 +124,31 @@ export const electronAPI = {
       const listener = () => callback();
       ipcRenderer.on('jobs:logs-updated', listener);
       return () => ipcRenderer.removeListener('jobs:logs-updated', listener);
+    },
+    onAuditorProgress: (callback: (progress: any) => void) => {
+      const listener = (_e: any, progress: any) => callback(progress);
+      ipcRenderer.on('auditor:progress', listener);
+      return () => ipcRenderer.removeListener('auditor:progress', listener);
+    },
+    onAuditorCompleted: (callback: (summary: any) => void) => {
+      const listener = (_e: any, summary: any) => callback(summary);
+      ipcRenderer.on('auditor:completed', listener);
+      return () => ipcRenderer.removeListener('auditor:completed', listener);
+    },
+    onAuditorUpdated: (callback: () => void) => {
+      const listener = () => callback();
+      ipcRenderer.on('auditor:updated', listener);
+      return () => ipcRenderer.removeListener('auditor:updated', listener);
     }
+  },
+  auditor: {
+    startHealthCheck: (options?: { forceRecheck?: boolean; onlyFlagged?: boolean }) => ipcRenderer.invoke('auditor:startHealthCheck', options),
+    stopHealthCheck: () => ipcRenderer.invoke('auditor:stopHealthCheck'),
+    getProgress: () => ipcRenderer.invoke('auditor:getProgress'),
+    checkBookmark: (id: number) => ipcRenderer.invoke('auditor:checkBookmark', id),
+    getSummary: () => ipcRenderer.invoke('auditor:getSummary'),
+    getDuplicates: () => ipcRenderer.invoke('auditor:getDuplicates'),
+    mergeDuplicates: (primaryId: number, duplicateIds: number[], moveToTrash = true) => ipcRenderer.invoke('auditor:mergeDuplicates', primaryId, duplicateIds, moveToTrash)
   },
   exchange: {
     export: (options: any) => ipcRenderer.invoke('exchange:export', options),

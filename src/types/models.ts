@@ -11,6 +11,10 @@ export interface Bookmark {
   notes: string | null;
   hide_mode?: number;
   deleted_at?: string | null;
+  http_status?: number | null;
+  health_status?: 'ok' | 'dead' | 'server_error' | 'dns_error' | 'timeout' | 'unreachable' | null;
+  health_error?: string | null;
+  last_checked_at?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -99,6 +103,38 @@ export interface HtmlImportResult {
   total: number;
   collectionsCreated: number;
   tagsCreated: number;
+}
+
+export interface HealthCheckProgress {
+  isRunning: boolean;
+  total: number;
+  checked: number;
+  deadCount: number;
+  errorCount: number;
+  currentUrl?: string;
+  startedAt?: string;
+}
+
+export interface AuditSummary {
+  totalBookmarks: number;
+  healthyCount: number;
+  deadCount: number; // 404, 410
+  serverErrorCount: number; // 500+
+  dnsErrorCount: number; // ENOTFOUND
+  timeoutCount: number;
+  unreachableCount: number;
+  uncheckedCount: number;
+  exactDuplicatesCount: number;
+  normalizedDuplicatesCount: number;
+  duplicateGroupCount: number;
+}
+
+export interface DuplicateGroup {
+  normalizedUrl: string;
+  matchType: 'exact' | 'normalized';
+  differenceReasons: string[];
+  bookmarks: Bookmark[];
+  primaryBookmarkId: number;
 }
 
 

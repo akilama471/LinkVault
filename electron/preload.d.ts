@@ -97,6 +97,21 @@ export declare const electronAPI: {
         onCollectionsUpdated: (callback: () => void) => () => Electron.IpcRenderer;
         onTagsUpdated: (callback: () => void) => () => Electron.IpcRenderer;
         onJobsUpdated: (callback: () => void) => () => Electron.IpcRenderer;
+        onAuditorProgress: (callback: (progress: any) => void) => () => Electron.IpcRenderer;
+        onAuditorCompleted: (callback: (summary: any) => void) => () => Electron.IpcRenderer;
+        onAuditorUpdated: (callback: () => void) => () => Electron.IpcRenderer;
+    };
+    auditor: {
+        startHealthCheck: (options?: {
+            forceRecheck?: boolean;
+            onlyFlagged?: boolean;
+        }) => Promise<any>;
+        stopHealthCheck: () => Promise<any>;
+        getProgress: () => Promise<any>;
+        checkBookmark: (id: number) => Promise<any>;
+        getSummary: () => Promise<any>;
+        getDuplicates: () => Promise<any>;
+        mergeDuplicates: (primaryId: number, duplicateIds: number[], moveToTrash?: boolean) => Promise<any>;
     };
     exchange: {
         export: (options: any) => Promise<any>;

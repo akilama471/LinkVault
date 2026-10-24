@@ -14,6 +14,7 @@ interface MainLayoutProps {
   hasPassword?: boolean;
   onLock?: () => void;
   trashCount?: number;
+  auditorCount?: number;
   children: React.ReactNode;
 }
 
@@ -29,6 +30,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
   hasPassword,
   onLock,
   trashCount,
+  auditorCount,
   children
 }) => {
   return (
@@ -39,6 +41,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
         hasPassword={hasPassword}
         onLock={onLock}
         trashCount={trashCount}
+        auditorCount={auditorCount}
       />
       
       <main className="flex-1 flex flex-col h-full overflow-hidden">

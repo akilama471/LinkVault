@@ -18,12 +18,25 @@ export interface UpdateBookmarkDTO {
     preview_path?: string | null;
     deleted_at?: string | null;
     hide_mode?: number;
+    http_status?: number | null;
+    health_status?: string | null;
+    health_error?: string | null;
+    last_checked_at?: string | null;
 }
 export declare class BookmarkModel {
     findById(id: number): Bookmark | null;
     findByUrl(url: string): Bookmark | null;
     create(data: CreateBookmarkDTO): Bookmark;
     update(id: number, data: UpdateBookmarkDTO): Bookmark;
+    /**
+     * Updates health check status and error details for a bookmark
+     */
+    updateHealth(id: number, health: {
+        http_status?: number | null;
+        health_status: string;
+        health_error?: string | null;
+        last_checked_at: string;
+    }): void;
     /**
      * Moves a bookmark to the Recycle Bin (soft delete).
      */

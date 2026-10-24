@@ -314,6 +314,17 @@ export class DbManager {
             (SELECT d.domain || ' ' || COALESCE(d.display_name, '') FROM domains d WHERE d.id = b.domain_id)
           FROM bookmarks b;
         `,
+      },
+      {
+        version: 8,
+        up: `
+          ALTER TABLE bookmarks ADD COLUMN http_status INTEGER DEFAULT NULL;
+          ALTER TABLE bookmarks ADD COLUMN health_status TEXT DEFAULT NULL;
+          ALTER TABLE bookmarks ADD COLUMN health_error TEXT DEFAULT NULL;
+          ALTER TABLE bookmarks ADD COLUMN last_checked_at DATETIME DEFAULT NULL;
+
+          CREATE INDEX IF NOT EXISTS idx_bookmarks_health_status ON bookmarks(health_status);
+        `,
       }
     ];
 

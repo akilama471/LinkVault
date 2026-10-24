@@ -8,9 +8,11 @@ import { RecycleBinPage } from './pages/RecycleBinPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { LoginPage } from './pages/LoginPage';
 import { JobsPage } from './pages/JobsPage';
+import { AuditorPage } from './pages/AuditorPage';
 import { useBookmarks } from './hooks/useBookmarks';
 import { useCollections } from './hooks/useCollections';
 import { useAuth } from './hooks/useAuth';
+import { useAuditor } from './hooks/useAuditor';
 import { useToast } from './context/ToastContext';
 import { Loader2 } from 'lucide-react';
 
@@ -51,6 +53,9 @@ const App: React.FC = () => {
     emptyCollectionTrash,
     refresh: refreshCollections
   } = useCollections(isAuthenticated);
+
+  const { summary: auditorSummary } = useAuditor();
+  const auditorIssueCount = (auditorSummary?.deadCount ?? 0) + (auditorSummary?.duplicateGroupCount ?? 0);
 
   const loading = bookmarksLoading || collectionsLoading;
   const totalTrashCount = deletedBookmarks.length + deletedCollections.length;
@@ -170,6 +175,7 @@ const App: React.FC = () => {
       hasPassword={hasPassword}
       onLock={lock}
       trashCount={totalTrashCount}
+      auditorCount={auditorIssueCount}
     >
       {(currentTab === 'all' || currentTab === 'favorites' || currentTab === 'important') && (
             <BookmarksPage 
@@ -268,6 +274,15 @@ const App: React.FC = () => {
 
           {currentTab === 'jobs' && (
             <JobsPage />
+          )}
+
+          {currentTab === 'auditor' && (
+            <AuditorPage
+              bookmarks={bookmarks}
+              onDeleteBookmark={deleteBookmark}
+              onUpdateBookmark={updateBookmark}
+              onRefreshBookmarks={refreshBookmarks}
+            />
           )}
     </MainLayout>
   );
