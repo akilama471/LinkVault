@@ -177,6 +177,14 @@ export class CollectionService {
     });
     return collectionModel.getCollectionsForBookmark(bookmarkId);
   }
+
+  public bulkAddBookmarksToCollection(collectionId: number, bookmarkIds: number[]): void {
+    collectionModel.bulkAddBookmarksToCollection(collectionId, bookmarkIds);
+    webContents.getAllWebContents().forEach(wc => {
+      wc.send('collections:updated');
+      wc.send('bookmarks:updated');
+    });
+  }
   
   public getBookmarkIdsForCollection(collectionId: number): number[] {
     return collectionModel.getBookmarkIdsForCollection(collectionId);

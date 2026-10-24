@@ -71,6 +71,32 @@ export class TagModel {
       }
     })();
   }
+
+  public bulkAddTagsToBookmarks(bookmarkIds: number[], tagIds: number[]): void {
+    if (!bookmarkIds.length || !tagIds.length) return;
+    const db = dbManager.getDb();
+    const insertStmt = db.prepare('INSERT OR IGNORE INTO bookmark_tags (bookmark_id, tag_id) VALUES (?, ?)');
+    db.transaction(() => {
+      for (const bId of bookmarkIds) {
+        for (const tId of tagIds) {
+          insertStmt.run(bId, tId);
+        }
+      }
+    })();
+  }
+
+  public bulkRemoveTagsFromBookmarks(bookmarkIds: number[], tagIds: number[]): void {
+    if (!bookmarkIds.length || !tagIds.length) return;
+    const db = dbManager.getDb();
+    const deleteStmt = db.prepare('DELETE FROM bookmark_tags WHERE bookmark_id = ? AND tag_id = ?');
+    db.transaction(() => {
+      for (const bId of bookmarkIds) {
+        for (const tId of tagIds) {
+          deleteStmt.run(bId, tId);
+        }
+      }
+    })();
+  }
 }
 
 export const tagModel = new TagModel();

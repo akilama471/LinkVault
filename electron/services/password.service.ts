@@ -142,9 +142,14 @@ export class PasswordService {
       const verifyHash = verifyHashBuffer.toString('hex');
 
       if (crypto.timingSafeEqual(Buffer.from(hash, 'hex'), Buffer.from(verifyHash, 'hex'))) {
-        // Upgrade legacy hash to modern AES-256-GCM vault metadata
-        await this.setPassword(password);
+        // User successfully verified with legacy hash; authenticate first so setPassword won't be rejected
         this.isAuthenticated = true;
+        try {
+          // Upgrade legacy hash to modern AES-256-GCM vault metadata
+          await this.setPassword(password);
+        } catch (upgradeErr) {
+          console.warn('[PasswordService] Legacy hash verified, but vault upgrade encountered an issue:', upgradeErr);
+        }
         return true;
       }
       return false;

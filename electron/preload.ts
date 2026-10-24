@@ -11,6 +11,8 @@ export const electronAPI = {
     update: (id: number, data: any) => ipcRenderer.invoke('bookmarks:update', id, data),
     refetch: (id: number) => ipcRenderer.invoke('bookmarks:refetch', id),
     delete: (id: number) => ipcRenderer.invoke('bookmarks:delete', id),
+    bulkDelete: (ids: number[]) => ipcRenderer.invoke('bookmarks:bulkDelete', ids),
+    bulkUpdate: (ids: number[], data: any) => ipcRenderer.invoke('bookmarks:bulkUpdate', ids, data),
     restore: (id: number) => ipcRenderer.invoke('bookmarks:restore', id),
     permanentDelete: (id: number) => ipcRenderer.invoke('bookmarks:permanentDelete', id),
     emptyTrash: () => ipcRenderer.invoke('bookmarks:emptyTrash')
@@ -28,6 +30,8 @@ export const electronAPI = {
     delete: (id: number) => ipcRenderer.invoke('tags:delete', id),
     getForBookmark: (bookmarkId: number) => ipcRenderer.invoke('tags:getForBookmark', bookmarkId),
     setForBookmark: (bookmarkId: number, tagNames: string[]) => ipcRenderer.invoke('tags:setForBookmark', bookmarkId, tagNames),
+    bulkAdd: (bookmarkIds: number[], tagNames: string[]) => ipcRenderer.invoke('tags:bulkAdd', bookmarkIds, tagNames),
+    bulkRemove: (bookmarkIds: number[], tagIds: number[]) => ipcRenderer.invoke('tags:bulkRemove', bookmarkIds, tagIds),
     getBookmarkIds: (tagId: number) => ipcRenderer.invoke('tags:getBookmarkIds', tagId)
   },
   collections: {
@@ -42,6 +46,7 @@ export const electronAPI = {
     emptyTrash: () => ipcRenderer.invoke('collections:emptyTrash'),
     getForBookmark: (bookmarkId: number) => ipcRenderer.invoke('collections:getForBookmark', bookmarkId),
     setForBookmark: (bookmarkId: number, colNames: string[]) => ipcRenderer.invoke('collections:setForBookmark', bookmarkId, colNames),
+    bulkAdd: (collectionId: number, bookmarkIds: number[]) => ipcRenderer.invoke('collections:bulkAdd', collectionId, bookmarkIds),
     getBookmarkIds: (collectionId: number) => ipcRenderer.invoke('collections:getBookmarkIds', collectionId)
   },
   auth: {

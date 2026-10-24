@@ -33,6 +33,16 @@ export function registerBookmarkController() {
     return { success: true };
   });
 
+  registerSecureHandler('bookmarks:bulkDelete', (_event, ids: number[]) => {
+    const count = bookmarkService.bulkDeleteBookmarks(ids);
+    return { success: true, count };
+  });
+
+  registerSecureHandler('bookmarks:bulkUpdate', (_event, ids: number[], data: UpdateBookmarkDTO) => {
+    const count = bookmarkService.bulkUpdateBookmarks(ids, data);
+    return { success: true, count };
+  });
+
   registerSecureHandler('bookmarks:getDeleted', () => {
     const bookmarks = bookmarkService.getDeletedBookmarks();
     return { success: true, data: bookmarks };

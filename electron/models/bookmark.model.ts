@@ -96,6 +96,37 @@ export class BookmarkModel {
   }
 
   /**
+   * Moves multiple bookmarks to the Recycle Bin (soft delete).
+   */
+  public bulkDelete(ids: number[]): number {
+    if (!ids || ids.length === 0) return 0;
+    const db = dbManager.getDb();
+    const placeholders = ids.map(() => '?').join(',');
+    const info = db.prepare(`UPDATE bookmarks SET deleted_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id IN (${placeholders}) AND deleted_at IS NULL`).run(...ids);
+    return info.changes;
+  }
+
+  /**
+   * Updates multiple bookmarks in a single query.
+   */
+  public bulkUpdate(ids: number[], data: UpdateBookmarkDTO): number {
+    if (!ids || ids.length === 0) return 0;
+    const db = dbManager.getDb();
+    const updates: string[] = [];
+    const values: any[] = [];
+    if (data.is_favorite !== undefined) { updates.push('is_favorite = ?'); values.push(data.is_favorite ? 1 : 0); }
+    if (data.is_important !== undefined) { updates.push('is_important = ?'); values.push(data.is_important ? 1 : 0); }
+    if (data.hide_mode !== undefined) { updates.push('hide_mode = ?'); values.push(data.hide_mode); }
+    if (updates.length === 0) return 0;
+
+    updates.push('updated_at = CURRENT_TIMESTAMP');
+    const placeholders = ids.map(() => '?').join(',');
+    const sql = `UPDATE bookmarks SET ${updates.join(', ')} WHERE id IN (${placeholders})`;
+    const info = db.prepare(sql).run(...values, ...ids);
+    return info.changes;
+  }
+
+  /**
    * Restores a bookmark from the Recycle Bin.
    */
   public restore(id: number): Bookmark | null {

@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
-import { Search, Plus, Loader2, ClipboardPaste } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { Search, Plus, Loader2, ClipboardPaste, Keyboard } from 'lucide-react';
+import { KeyboardShortcutsModal } from '../common/KeyboardShortcutsModal';
 
 interface TopHeaderProps {
   searchQuery: string;
@@ -76,6 +77,47 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
   isAdding
 }) => {
   const [feedback, setFeedback] = useState<string | null>(null);
+  const [showShortcuts, setShowShortcuts] = useState(false);
+
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const urlInputRef = useRef<HTMLInputElement>(null);
+
+  // Global shortcuts for Ctrl+K and Ctrl+N
+  useEffect(() => {
+    const handleFocusSearch = () => {
+      if (searchInputRef.current) {
+        searchInputRef.current.focus();
+        searchInputRef.current.select();
+      }
+    };
+
+    const handleFocusAddUrl = () => {
+      if (urlInputRef.current) {
+        urlInputRef.current.focus();
+        urlInputRef.current.select();
+      }
+    };
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        handleFocusSearch();
+      } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'n') {
+        e.preventDefault();
+        handleFocusAddUrl();
+      }
+    };
+
+    window.addEventListener('linkvault:focus-search', handleFocusSearch);
+    window.addEventListener('linkvault:focus-add-url', handleFocusAddUrl);
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      window.removeEventListener('linkvault:focus-search', handleFocusSearch);
+      window.removeEventListener('linkvault:focus-add-url', handleFocusAddUrl);
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -114,51 +156,81 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
   };
 
   return (
-    <header className="bg-white border-b border-gray-200 px-8 py-4 flex items-center justify-between shrink-0">
-      <div className="relative w-96">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
-        <input 
-          type="text" 
-          placeholder="Search bookmarks..." 
-          value={searchQuery}
-          onChange={(e) => onSearchChange(e.target.value)}
-          className="w-full pl-10 pr-4 py-2 bg-gray-100 border-transparent rounded-lg focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all text-sm"
-        />
-      </div>
-      
-      <form onSubmit={handleSubmit} className="flex items-center gap-2">
-        <div className="relative">
+    <>
+      <header className="bg-white border-b border-gray-200 px-8 py-4 flex items-center justify-between shrink-0">
+        <div className="relative w-96">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
           <input 
+            ref={searchInputRef}
             type="text" 
-            placeholder={feedback || "https://example.com"} 
-            value={newUrl}
-            onChange={(e) => {
-              if (feedback) setFeedback(null);
-              onUrlChange(e.target.value);
-            }}
-            className={`w-64 px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm transition-all ${
-              feedback 
-                ? 'border-amber-400 bg-amber-50 placeholder-amber-600 text-amber-900' 
-                : 'border-gray-300'
-            }`}
+            placeholder="Search bookmarks..." 
+            value={searchQuery}
+            onChange={(e) => onSearchChange(e.target.value)}
+            className="w-full pl-10 pr-16 py-2 bg-gray-100 border-transparent rounded-lg focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all text-sm"
           />
+          <kbd className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-semibold text-gray-400 bg-gray-200/70 border border-gray-300 px-1.5 py-0.5 rounded shadow-2xs pointer-events-none select-none">
+            Ctrl K
+          </kbd>
         </div>
-        <button 
-          type="submit" 
-          disabled={isAdding}
-          title={newUrl.trim() ? "Add URL" : "Paste from clipboard and add bookmark"}
-          className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-700 disabled:opacity-70 transition-colors text-sm shadow-sm active:scale-95 cursor-pointer"
-        >
-          {isAdding ? (
-            <Loader2 className="w-5 h-5 animate-spin" />
-          ) : !newUrl.trim() ? (
-            <ClipboardPaste className="w-5 h-5" />
-          ) : (
-            <Plus className="w-5 h-5" />
-          )}
-          Add URL
-        </button>
-      </form>
-    </header>
+        
+        <div className="flex items-center gap-3">
+          <form onSubmit={handleSubmit} className="flex items-center gap-2">
+            <div className="relative">
+              <input 
+                ref={urlInputRef}
+                type="text" 
+                placeholder={feedback || "https://example.com"} 
+                value={newUrl}
+                onChange={(e) => {
+                  if (feedback) setFeedback(null);
+                  onUrlChange(e.target.value);
+                }}
+                className={`w-64 pl-4 pr-16 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm transition-all ${
+                  feedback 
+                    ? 'border-amber-400 bg-amber-50 placeholder-amber-600 text-amber-900' 
+                    : 'border-gray-300'
+                }`}
+              />
+              {!feedback && !newUrl && (
+                <kbd className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-semibold text-gray-400 bg-gray-100 border border-gray-300 px-1.5 py-0.5 rounded shadow-2xs pointer-events-none select-none">
+                  Ctrl N
+                </kbd>
+              )}
+            </div>
+            <button 
+              type="submit" 
+              disabled={isAdding}
+              title={newUrl.trim() ? "Add URL" : "Paste from clipboard and add bookmark"}
+              className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-700 disabled:opacity-70 transition-colors text-sm shadow-sm active:scale-95 cursor-pointer"
+            >
+              {isAdding ? (
+                <Loader2 className="w-5 h-5 animate-spin" />
+              ) : !newUrl.trim() ? (
+                <ClipboardPaste className="w-5 h-5" />
+              ) : (
+                <Plus className="w-5 h-5" />
+              )}
+              Add URL
+            </button>
+          </form>
+
+          {/* Quick shortcuts modal trigger */}
+          <button
+            type="button"
+            onClick={() => setShowShortcuts(true)}
+            title="Keyboard shortcuts (?)"
+            className="p-2 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer"
+            aria-label="Keyboard shortcuts"
+          >
+            <Keyboard className="w-5 h-5" />
+          </button>
+        </div>
+      </header>
+
+      <KeyboardShortcutsModal
+        isOpen={showShortcuts}
+        onClose={() => setShowShortcuts(false)}
+      />
+    </>
   );
 };

@@ -57,6 +57,11 @@ export function registerCollectionController() {
     return { success: true, data: cols };
   });
 
+  registerSecureHandler('collections:bulkAdd', (_event, collectionId: number, bookmarkIds: number[]) => {
+    collectionService.bulkAddBookmarksToCollection(collectionId, bookmarkIds);
+    return { success: true };
+  });
+
   registerSecureHandler('collections:getBookmarkIds', (_event, collectionId: number) => {
     const ids = collectionService.getBookmarkIdsForCollection(collectionId);
     return { success: true, data: ids };

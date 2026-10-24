@@ -57,6 +57,23 @@ export class TagService {
     });
     return tagModel.getTagsForBookmark(bookmarkId);
   }
+
+  public bulkAddTagsToBookmarks(bookmarkIds: number[], tagNames: string[]): void {
+    const tagIds = tagNames.map(name => this.getOrCreateTag(name).id);
+    tagModel.bulkAddTagsToBookmarks(bookmarkIds, tagIds);
+    webContents.getAllWebContents().forEach(wc => {
+      wc.send('tags:updated');
+      wc.send('bookmarks:updated');
+    });
+  }
+
+  public bulkRemoveTagsFromBookmarks(bookmarkIds: number[], tagIds: number[]): void {
+    tagModel.bulkRemoveTagsFromBookmarks(bookmarkIds, tagIds);
+    webContents.getAllWebContents().forEach(wc => {
+      wc.send('tags:updated');
+      wc.send('bookmarks:updated');
+    });
+  }
   
   public getBookmarkIdsForTag(tagId: number): number[] {
     return tagModel.getBookmarkIdsForTag(tagId);

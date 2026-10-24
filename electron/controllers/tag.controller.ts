@@ -32,6 +32,16 @@ export function registerTagController() {
     return { success: true, data: tags };
   });
 
+  registerSecureHandler('tags:bulkAdd', (_event, bookmarkIds: number[], tagNames: string[]) => {
+    tagService.bulkAddTagsToBookmarks(bookmarkIds, tagNames);
+    return { success: true };
+  });
+
+  registerSecureHandler('tags:bulkRemove', (_event, bookmarkIds: number[], tagIds: number[]) => {
+    tagService.bulkRemoveTagsFromBookmarks(bookmarkIds, tagIds);
+    return { success: true };
+  });
+
   registerSecureHandler('tags:getBookmarkIds', (_event, tagId: number) => {
     const ids = tagService.getBookmarkIdsForTag(tagId);
     return { success: true, data: ids };

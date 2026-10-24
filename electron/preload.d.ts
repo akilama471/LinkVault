@@ -8,6 +8,8 @@ export declare const electronAPI: {
         update: (id: number, data: any) => Promise<any>;
         refetch: (id: number) => Promise<any>;
         delete: (id: number) => Promise<any>;
+        bulkDelete: (ids: number[]) => Promise<any>;
+        bulkUpdate: (ids: number[], data: any) => Promise<any>;
         restore: (id: number) => Promise<any>;
         permanentDelete: (id: number) => Promise<any>;
         emptyTrash: () => Promise<any>;
@@ -25,6 +27,8 @@ export declare const electronAPI: {
         delete: (id: number) => Promise<any>;
         getForBookmark: (bookmarkId: number) => Promise<any>;
         setForBookmark: (bookmarkId: number, tagNames: string[]) => Promise<any>;
+        bulkAdd: (bookmarkIds: number[], tagNames: string[]) => Promise<any>;
+        bulkRemove: (bookmarkIds: number[], tagIds: number[]) => Promise<any>;
         getBookmarkIds: (tagId: number) => Promise<any>;
     };
     collections: {
@@ -39,6 +43,7 @@ export declare const electronAPI: {
         emptyTrash: () => Promise<any>;
         getForBookmark: (bookmarkId: number) => Promise<any>;
         setForBookmark: (bookmarkId: number, colNames: string[]) => Promise<any>;
+        bulkAdd: (collectionId: number, bookmarkIds: number[]) => Promise<any>;
         getBookmarkIds: (collectionId: number) => Promise<any>;
     };
     auth: {

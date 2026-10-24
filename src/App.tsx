@@ -35,6 +35,10 @@ const App: React.FC = () => {
     toggleImportant,
     updateBookmark,
     refetchBookmark,
+    bulkDeleteBookmarks,
+    bulkUpdateBookmarks,
+    bulkAddTags,
+    bulkAddToCollection,
     refresh: refreshBookmarks
   } = useBookmarks(isAuthenticated);
 
@@ -177,6 +181,10 @@ const App: React.FC = () => {
               onToggleImportant={toggleImportant}
               onUpdateBookmark={updateBookmark}
               onRefetchBookmark={refetchBookmark}
+              onBulkDeleteBookmarks={bulkDeleteBookmarks}
+              onBulkUpdateBookmarks={bulkUpdateBookmarks}
+              onBulkAddTags={bulkAddTags}
+              onBulkAddToCollection={bulkAddToCollection}
             />
           )}
 
@@ -189,6 +197,10 @@ const App: React.FC = () => {
               onToggleImportant={toggleImportant}
               onUpdateBookmark={updateBookmark}
               onRefetchBookmark={refetchBookmark}
+              onBulkDeleteBookmarks={bulkDeleteBookmarks}
+              onBulkUpdateBookmarks={bulkUpdateBookmarks}
+              onBulkAddTags={bulkAddTags}
+              onBulkAddToCollection={bulkAddToCollection}
             />
           )}
 
@@ -201,6 +213,10 @@ const App: React.FC = () => {
               onToggleImportant={toggleImportant}
               onUpdateBookmark={updateBookmark}
               onRefetchBookmark={refetchBookmark}
+              onBulkDeleteBookmarks={bulkDeleteBookmarks}
+              onBulkUpdateBookmarks={bulkUpdateBookmarks}
+              onBulkAddTags={bulkAddTags}
+              onBulkAddToCollection={bulkAddToCollection}
             />
           )}
 
@@ -213,6 +229,10 @@ const App: React.FC = () => {
               onToggleImportant={toggleImportant}
               onUpdateBookmark={updateBookmark}
               onRefetchBookmark={refetchBookmark}
+              onBulkDeleteBookmarks={bulkDeleteBookmarks}
+              onBulkUpdateBookmarks={bulkUpdateBookmarks}
+              onBulkAddTags={bulkAddTags}
+              onBulkAddToCollection={bulkAddToCollection}
             />
           )}
 

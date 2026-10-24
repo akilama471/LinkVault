@@ -169,6 +169,29 @@ export class BookmarkService {
   }
 
   /**
+   * Soft-deletes multiple bookmarks by moving them to the Recycle Bin.
+   */
+  public bulkDeleteBookmarks(ids: number[]): number {
+    this.purgeExpiredBookmarks().catch(console.error);
+    const count = bookmarkModel.bulkDelete(ids);
+    webContents.getAllWebContents().forEach(wc => {
+      wc.send('bookmarks:updated');
+    });
+    return count;
+  }
+
+  /**
+   * Bulk updates properties for multiple bookmarks.
+   */
+  public bulkUpdateBookmarks(ids: number[], data: UpdateBookmarkDTO): number {
+    const count = bookmarkModel.bulkUpdate(ids, data);
+    webContents.getAllWebContents().forEach(wc => {
+      wc.send('bookmarks:updated');
+    });
+    return count;
+  }
+
+  /**
    * Restores a bookmark from the Recycle Bin.
    */
   public restoreBookmark(id: number): Bookmark | null {

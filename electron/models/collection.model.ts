@@ -179,6 +179,17 @@ export class CollectionModel {
       }
     })();
   }
+
+  public bulkAddBookmarksToCollection(collectionId: number, bookmarkIds: number[]): void {
+    if (!bookmarkIds.length) return;
+    const db = dbManager.getDb();
+    const insertStmt = db.prepare('INSERT OR IGNORE INTO bookmark_collections (bookmark_id, collection_id) VALUES (?, ?)');
+    db.transaction(() => {
+      for (const bId of bookmarkIds) {
+        insertStmt.run(bId, collectionId);
+      }
+    })();
+  }
 }
 
 export const collectionModel = new CollectionModel();
